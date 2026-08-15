@@ -10,7 +10,9 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Custom names for every start and end location, used throughout the app
 - Elevation profile for each selected day
 - High-accuracy iPhone browser location via `watchPosition`
+- GPS simulation near Lynmouth for testing without sharing device location
 - Nearest-point matching and progress for the selected day and total planned sections
+- Start and end location links that open their exact coordinates in Google Maps
 - Device-local persistence in IndexedDB (Dexie)
 - GPX import, including elevation values where the GPX contains them
 - Installable PWA and service worker

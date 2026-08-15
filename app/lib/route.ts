@@ -1,5 +1,5 @@
 import { gpx } from "@tmcw/togeojson";
-import type { Checkpoint, MatchedPosition, RoutePoint, TrailRoute } from "../types";
+import type { Checkpoint, GpsReading, MatchedPosition, RoutePoint, TrailRoute } from "../types";
 
 export const haversineKm = (a: Pick<RoutePoint, "lng" | "lat">, b: Pick<RoutePoint, "lng" | "lat">) => {
   const toRad = (value: number) => value * Math.PI / 180;
@@ -62,6 +62,27 @@ export function routePointAt(route: TrailRoute, distanceKm: number): RoutePoint 
     previous = point;
   }
   return previous;
+}
+
+export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "Lynmouth", offsetKm = 2): GpsReading | null {
+  const checkpoint = route.checkpoints.find((point) => point.name === checkpointName) ?? route.checkpoints[0];
+  if (!checkpoint) return null;
+  const point = routePointAt(route, Math.min(route.officialDistanceKm, checkpoint.distanceKm + offsetKm));
+  if (!point) return null;
+  return {
+    latitude: point.lat,
+    longitude: point.lng,
+    accuracy: 6,
+    altitude: point.elevationM,
+    altitudeAccuracy: 10,
+    heading: 90,
+    speed: 1.35,
+  };
+}
+
+export function googleMapsUrl(point: Pick<RoutePoint, "lat" | "lng">): string {
+  const query = encodeURIComponent(`${point.lat.toFixed(6)},${point.lng.toFixed(6)}`);
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 export function ascentDescent(points: RoutePoint[]) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUp, CalendarDays, Check, ChevronRight, CircleAlert,
-  CloudOff, Download, FileUp, Footprints, LocateFixed, MapPin, Mountain,
+  CloudOff, Download, ExternalLink, FileUp, Footprints, LocateFixed, MapPin, Mountain,
   Navigation, Pencil, Plus, Route as RouteIcon, Satellite, Trash2, X,
 } from "lucide-react";
 import {
@@ -16,9 +16,10 @@ import {
   totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
-  ascentDescent, importGpx, nearestRoutePosition, pointsForDay, routePointAt,
+  ascentDescent, googleMapsUrl, importGpx, nearestRoutePosition, pointsForDay,
+  routePointAt, simulatedGpsNearCheckpoint,
 } from "../lib/route";
-import type { TrailRoute, WalkingDay } from "../types";
+import type { GpsReading, TrailRoute, WalkingDay } from "../types";
 
 type Tab = "track" | "plan" | "data";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
@@ -36,7 +37,8 @@ export function CoastPathApp() {
   const [selectedId, setSelectedId] = useState("");
   const [tab, setTab] = useState<Tab>("track");
   const [loadingError, setLoadingError] = useState("");
-  const [gps, setGps] = useState<GeolocationCoordinates | null>(null);
+  const [gps, setGps] = useState<GpsReading | null>(null);
+  const [simulateGps, setSimulateGps] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [watchId, setWatchId] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
@@ -102,17 +104,42 @@ export function CoastPathApp() {
     ...point,
     dayKm: Number((point.distanceKm - (selectedDay?.startDistanceKm ?? 0)).toFixed(2)),
   }));
+  const startLocation = route && selectedDay
+    ? selectedDay.startCoordinate ?? routePointAt(route, selectedDay.startDistanceKm)
+    : null;
+  const endLocation = route && selectedDay
+    ? selectedDay.endCoordinate ?? routePointAt(route, selectedDay.endDistanceKm)
+    : null;
 
   const startGps = () => {
     setGpsError("");
     if (!("geolocation" in navigator)) { setGpsError("Location is not available in this browser."); return; }
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); setWatchId(null); setGps(null); return; }
+    setSimulateGps(false);
     const id = navigator.geolocation.watchPosition(
       (position) => setGps(position.coords),
       (error) => setGpsError(error.code === 1 ? "Location permission was not granted. Allow location in Safari settings and try again." : error.message),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
     setWatchId(id);
+  };
+
+  const toggleGpsSimulation = () => {
+    setGpsError("");
+    if (simulateGps) {
+      setSimulateGps(false);
+      setGps(null);
+      return;
+    }
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    setWatchId(null);
+    const simulated = route ? simulatedGpsNearCheckpoint(route) : null;
+    if (!simulated) {
+      setGpsError("A simulated location could not be created for this route.");
+      return;
+    }
+    setGps(simulated);
+    setSimulateGps(true);
   };
 
   const openNewDay = () => {
@@ -307,12 +334,19 @@ export function CoastPathApp() {
               <div className="tracking-copy">
                 <p className="eyebrow"><Footprints size={14} /> Day {selectedDay.order} progress</p>
                 <h2>{gps ? `${formatKm(dayProgress)} walked` : `${formatKm(dayDistance)} planned`}</h2>
-                <p>{matched ? `${matched.distanceKm.toFixed(1)} km along the path · ${Math.round(matched.offRouteM)} m from the trail` : "Use your iPhone location to calculate progress along this section."}</p>
+                <p>{matched ? `${simulateGps ? "Simulated near Lynmouth · " : ""}${matched.distanceKm.toFixed(1)} km along the path · ${Math.round(matched.offRouteM)} m from the trail` : "Use your iPhone location to calculate progress along this section."}</p>
                 <div className="progress-track" aria-label={`${Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}% of this day completed`}><span style={{ width: `${dayDistance ? dayProgress / dayDistance * 100 : 0}%` }} /></div>
               </div>
-              <button className={`locate-button ${watchId !== null ? "active" : ""}`} onClick={startGps}>
-                <LocateFixed size={19} /> {watchId !== null ? "Stop locating" : "Use my location"}
-              </button>
+              <div className="tracking-actions">
+                <label className="simulation-toggle">
+                  <input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} />
+                  <span className="toggle-track"><i /></span>
+                  <span><strong>Simulate GPS</strong><small>Just after Lynmouth</small></span>
+                </label>
+                <button className={`locate-button ${watchId !== null ? "active" : ""}`} onClick={startGps}>
+                  <LocateFixed size={19} /> {watchId !== null ? "Stop locating" : "Use my location"}
+                </button>
+              </div>
             </section>
 
             {gpsError && <div className="alert"><CircleAlert size={18} /><span>{gpsError}</span></div>}
@@ -320,7 +354,7 @@ export function CoastPathApp() {
             <section className="metric-grid" aria-label="Walking progress">
               <Metric icon={<Footprints />} label="Today" value={gps ? formatKm(dayProgress) : "Start GPS"} sub={gps ? `${Math.max(0, dayDistance - dayProgress).toFixed(1)} km remaining` : formatKm(dayDistance) + " planned"} accent="coral" />
               <Metric icon={<RouteIcon />} label="Whole plan" value={gps ? formatKm(planProgress) : formatKm(plannedDistance)} sub={gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining of ${plannedDistance.toFixed(1)} km` : `Total across ${days.length} planned ${days.length === 1 ? "day" : "days"}`} accent="green" />
-              <Metric icon={<Satellite />} label="GPS match" value={matched ? `±${Math.round(gps?.accuracy ?? 0)} m` : "Not active"} sub={matched ? `${Math.round(matched.offRouteM)} m from path` : "Tap ‘Use my location’"} accent="blue" />
+              <Metric icon={<Satellite />} label="GPS match" value={matched ? `±${Math.round(gps?.accuracy ?? 0)} m` : "Not active"} sub={matched ? `${simulateGps ? "Simulated · " : ""}${Math.round(matched.offRouteM)} m from path` : "Use location or simulation"} accent="blue" />
             </section>
 
             <section className="detail-grid">
@@ -345,7 +379,11 @@ export function CoastPathApp() {
               </div>
 
               <aside className="day-summary panel">
-                <div className="summary-route"><span>{selectedDay.startName}</span><div><i /><i /><i /></div><span>{selectedDay.endName}</span></div>
+                <div className="summary-route">
+                  {startLocation && <a href={googleMapsUrl(startLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.startName} in Google Maps`}><MapPin />{selectedDay.startName}<ExternalLink /></a>}
+                  <div><i /><i /><i /></div>
+                  {endLocation && <a href={googleMapsUrl(endLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.endName} in Google Maps`}><MapPin />{selectedDay.endName}<ExternalLink /></a>}
+                </div>
                 <div className="summary-stats"><div><span>Distance</span><strong>{formatKm(dayDistance)}</strong></div><div><span>Highest point</span><strong>{Math.max(...dayPoints.map((point) => point.elevationM))} m</strong></div></div>
                 <button className="secondary-button" onClick={() => { openDayEditor("edit", selectedDay); setTab("plan"); }}><Pencil size={16} /> Edit this day</button>
               </aside>
@@ -382,7 +420,7 @@ export function CoastPathApp() {
             <div className="section-heading"><div><p className="eyebrow"><RouteIcon size={14} /> Route library</p><h1>Offline trail data</h1><p>The route is stored in IndexedDB on this iPhone after the first visit.</p></div></div>
             <div className="data-grid">
               <article className="data-card panel"><span className="data-icon"><RouteIcon /></span><p className="eyebrow">Active route</p><h2>{route.name}</h2><dl><div><dt>Route length</dt><dd>{formatKm(route.officialDistanceKm, 0)}</dd></div><div><dt>Route points</dt><dd>{route.points.filter(Boolean).length.toLocaleString()}</dd></div><div><dt>Geometry</dt><dd>{route.geometrySource}</dd></div><div><dt>Elevation</dt><dd>{route.elevationSource}</dd></div></dl></article>
-              <article className="import-card panel"><span className="data-icon coral"><FileUp /></span><p className="eyebrow">Bring your own data</p><h2>Import a GPX route</h2><p>A GPX track with elevation replaces the bundled route and powers the map, profile and map-matching — entirely on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled SWCP route</button></article>
+              <article className="import-card panel"><span className="data-icon coral"><FileUp /></span><p className="eyebrow">Bring your own data</p><h2>Import a GPX route</h2><p>A GPX track with elevation replaces the bundled route and powers the profile, GPS progress and coordinate matching — entirely on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled SWCP route</button></article>
             </div>
             <div className="offline-explainer"><CloudOff /><div><strong>Designed for patchy coastal signal</strong><p>Plans, route geometry, elevation profiles, coordinates and GPS calculations work offline after the app is prepared.</p></div></div>
           </section>

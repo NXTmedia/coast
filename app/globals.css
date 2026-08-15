@@ -73,8 +73,19 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 .tracking-copy > p:not(.eyebrow) { color: var(--muted); font-size: 13px; margin: 0; }
 .progress-track { width: min(560px, 100%); height: 7px; background: #d9e5de; border-radius: 999px; overflow: hidden; margin-top: 18px; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: var(--coral); transition: width .35s ease; }
+.tracking-actions { flex: 0 0 auto; display: flex; flex-direction: column; align-items: stretch; gap: 9px; }
 .locate-button { flex: 0 0 auto; border: 0; background: var(--green); color: white; border-radius: 13px; padding: 12px 15px; display: flex; align-items: center; gap: 8px; font-weight: 750; box-shadow: 0 10px 24px rgba(25,70,58,.2); cursor: pointer; }
 .locate-button.active { background: var(--coral); }
+.simulation-toggle { min-height: 48px; padding: 7px 10px; border: 1px solid #cbdad2; border-radius: 13px; background: rgba(255,255,255,.72); display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.simulation-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.toggle-track { width: 36px; height: 22px; padding: 3px; border-radius: 999px; background: #bdc9c3; transition: background .2s ease; flex: 0 0 auto; }
+.toggle-track i { display: block; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 1px 4px rgba(20,50,42,.25); transition: transform .2s ease; }
+.simulation-toggle input:checked + .toggle-track { background: var(--coral); }
+.simulation-toggle input:checked + .toggle-track i { transform: translateX(14px); }
+.simulation-toggle input:focus-visible + .toggle-track { outline: 3px solid rgba(47,131,190,.3); outline-offset: 2px; }
+.simulation-toggle strong, .simulation-toggle small { display: block; }
+.simulation-toggle strong { font-size: 12px; line-height: 1.2; }
+.simulation-toggle small { color: var(--muted); font-size: 9px; margin-top: 2px; }
 
 .alert { display: flex; gap: 9px; align-items: flex-start; margin-top: 14px; padding: 12px 14px; border: 1px solid #efc5b9; background: #fff0eb; color: #824630; border-radius: 13px; font-size: 13px; }
 .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
@@ -100,7 +111,11 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 .elevation-tooltip strong, .elevation-tooltip span { display: block; }.elevation-tooltip span { opacity: .75; font-size: 10px; margin-top: 2px; }
 .day-summary { padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
 .summary-route { display: grid; grid-template-columns: 1fr 12px 1fr; gap: 10px; align-items: center; font-family: Georgia, serif; font-size: 19px; }
-.summary-route > span:last-child { text-align: right; }
+.summary-route > a { color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.summary-route > a:last-child { text-align: right; justify-content: flex-end; }
+.summary-route > a svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--coral); }
+.summary-route > a svg:last-child { width: 11px; color: var(--muted); }
+.summary-route > a:hover { color: var(--green-2); text-decoration: underline; text-underline-offset: 3px; }
 .summary-route > div { display: flex; flex-direction: column; align-items: center; gap: 3px; }.summary-route i { width: 3px; height: 3px; border-radius: 50%; background: var(--coral); }.summary-route i:nth-child(2) { width: 4px; height: 4px; }
 .summary-stats { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 22px 0; padding: 15px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .summary-stats div + div { border-left: 1px solid var(--line); padding-left: 14px; }.summary-stats span, .summary-stats strong { display: block; }.summary-stats span { color: var(--muted); font-size: 10px; text-transform: uppercase; font-weight: 800; }.summary-stats strong { font-family: Georgia, serif; font-size: 20px; font-weight: 500; margin-top: 4px; }
@@ -146,7 +161,7 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 760px) {
   .topbar { height: calc(64px + env(safe-area-inset-top)); padding-left: 16px; padding-right: 16px; }.brand-mark { width: 36px; height: 36px; }.brand strong { font-size: 19px; }.brand small { display: none; }.status-pill { padding: 7px 9px; font-size: 10px; }.install-button span { display: none; }
   .main-content { width: min(100% - 24px, 680px); padding-top: 23px; }.hero-row, .section-heading { align-items: flex-start; flex-direction: column; gap: 15px; }.hero-row h1, .section-heading h1 { font-size: 32px; flex-wrap: wrap; gap: 6px; }.hero-row h1 svg { width: 20px; }.day-picker { width: 100%; }.day-picker select { width: 100%; min-width: 0; }
-  .tracking-card { align-items: stretch; flex-direction: column; padding: 20px; gap: 20px; }.locate-button { justify-content: center; }
+  .tracking-card { align-items: stretch; flex-direction: column; padding: 20px; gap: 20px; }.tracking-actions { width: 100%; }.locate-button { justify-content: center; }
   .metric-grid { grid-template-columns: 1fr; gap: 8px; }.metric-card { padding: 13px 14px; }.metric-card strong { font-size: 21px; }.metric-card > div { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: end; width: 100%; }.metric-card p { grid-column: 1; }.metric-card strong { grid-column: 1; }.metric-card small { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
   .detail-grid { grid-template-columns: 1fr; }.profile-card { padding-left: 10px; padding-right: 10px; }.panel-heading { margin-left: 10px; margin-right: 10px; }.panel-heading h2 { font-size: 21px; }.climb-summary { flex-direction: column; gap: 2px; }.chart-wrap { height: 215px; }.day-summary { padding: 20px; }
   .data-grid { grid-template-columns: 1fr; }.data-card, .import-card { padding: 21px; }.section-heading .primary-button { width: 100%; }.day-main { grid-template-columns: 40px 1fr auto; gap: 10px; }.day-number { width: 38px; height: 38px; }.day-main > svg { display: none; }.day-copy strong { font-size: 16px; }.row-actions { flex-direction: column; justify-content: center; padding: 4px; }.day-distance strong { font-size: 18px; }

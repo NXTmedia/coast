@@ -31,12 +31,16 @@ test("includes the requested offline-first features", async () => {
   assert.match(database, /normalizeDayOrders/);
   assert.match(days, /order: index \+ 1/);
   assert.match(app, /watchPosition/);
+  assert.match(app, /Simulate GPS/);
+  assert.match(app, /simulatedGpsNearCheckpoint/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Start location name/);
   assert.match(app, /End location name/);
   assert.match(app, /No walking days planned/);
   assert.match(app, /Match to trail/);
   assert.match(app, /nearestRoutePosition\(route, lng, lat\)/);
+  assert.match(app, /Open \$\{selectedDay\.startName\} in Google Maps/);
+  assert.match(app, /googleMapsUrl\(startLocation\)/);
   assert.match(app, /AreaChart/);
   assert.doesNotMatch(app, /CoastMap/);
   assert.match(planning, /totalPlannedDistanceKm/);
