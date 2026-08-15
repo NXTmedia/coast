@@ -4,18 +4,17 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 
 ## What works
 
-- Interactive MapLibre map with the full SWCP route and selected day highlighted
 - Three sample walking days, plus create/edit/delete planning tools
 - One-tap “start where the previous day ended” planning
 - Start and end entry by named checkpoint, distance slider, or latitude/longitude with nearest-path matching
+- Custom names for every start and end location, used throughout the app
 - Elevation profile for each selected day
 - High-accuracy iPhone browser location via `watchPosition`
-- Nearest-point map matching and progress for the selected day and whole trail
+- Nearest-point matching and progress for the selected day and total planned sections
 - Device-local persistence in IndexedDB (Dexie)
 - GPX import, including elevation values where the GPX contains them
 - Installable PWA and service worker
 - Offline route, elevation, plans, chart and GPS calculations
-- Runtime caching of map tiles that have already been viewed
 
 ## Run locally
 
@@ -39,7 +38,7 @@ Browser location only works in a secure context. `localhost` is treated as secur
 
 ## Offline behaviour
 
-The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Wait until the header says **Offline ready** before closing the first session. Open each planned day’s map while online before setting out: OpenStreetMap tiles are cached as they are viewed, but this prototype does not yet offer bulk offline tile downloads.
+The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Wait until the header says **Offline ready** before closing the first session.
 
 ## Trail data
 

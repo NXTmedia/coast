@@ -17,7 +17,6 @@
     "@tmcw/togeojson": "^7.1.2",
     "dexie": "^4.4.5",
     "lucide-react": "^1.31.0",
-    "maplibre-gl": "^6.3.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "recharts": "^3.10.1"

@@ -1,6 +1,5 @@
-const VERSION = "coastline-v2";
+const VERSION = "coastline-v3";
 const SHELL_CACHE = `${VERSION}-shell`;
-const MAP_CACHE = `${VERSION}-maps`;
 const SHELL = ["/", "/manifest.webmanifest", "/data/swcp-route.json"];
 
 async function cacheShell() {
@@ -63,10 +62,6 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
 
-  if (url.hostname === "tile.openstreetmap.org") {
-    event.respondWith(cacheFirst(request, MAP_CACHE));
-    return;
-  }
   if (url.origin !== self.location.origin) return;
   if (request.mode === "navigate") {
     event.respondWith(navigationResponse(request));

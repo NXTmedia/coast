@@ -12,17 +12,6 @@ export const haversineKm = (a: Pick<RoutePoint, "lng" | "lat">, b: Pick<RoutePoi
   return 6371.0088 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 };
 
-export function routeLines(points: Array<RoutePoint | null>, start = -Infinity, end = Infinity) {
-  const lines: number[][][] = [];
-  let line: number[][] = [];
-  for (const point of points) {
-    if (point && point.distanceKm >= start && point.distanceKm <= end) line.push([point.lng, point.lat]);
-    else if (line.length) { if (line.length > 1) lines.push(line); line = []; }
-  }
-  if (line.length > 1) lines.push(line);
-  return lines;
-}
-
 export function pointsForDay(route: TrailRoute, start: number, end: number) {
   return route.points.filter((point): point is RoutePoint => Boolean(point && point.distanceKm >= start && point.distanceKm <= end));
 }
@@ -129,4 +118,3 @@ export function importGpx(text: string, filename: string): TrailRoute {
     checkpoints,
   };
 }
-

@@ -3,19 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUp, CalendarDays, Check, ChevronRight, CircleAlert,
-  CloudOff, Download, FileUp, Footprints, LocateFixed, Map, MapPin, Mountain,
+  CloudOff, Download, FileUp, Footprints, LocateFixed, MapPin, Mountain,
   Navigation, Pencil, Plus, Route as RouteIcon, Satellite, Trash2, X,
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { CoastMap } from "./CoastMap";
 import { db, loadInitialData, replaceRoute } from "../lib/db";
 import { normalizeDayOrders } from "../lib/days";
 import {
+  copyPreviousDayEnd, dayDistanceKm, plannedProgressKm, renameDayLocation,
+  totalPlannedDistanceKm,
+} from "../lib/planning";
+import {
   ascentDescent, importGpx, nearestRoutePosition, pointsForDay, routePointAt,
 } from "../lib/route";
-import type { RoutePoint, TrailRoute, WalkingDay } from "../types";
+import type { TrailRoute, WalkingDay } from "../types";
 
 type Tab = "track" | "plan" | "data";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
@@ -41,7 +44,6 @@ export function CoastPathApp() {
   const [editor, setEditor] = useState<EditorState>(null);
   const [coordinateDrafts, setCoordinateDrafts] = useState<CoordinateDrafts>({ startLat: "", startLng: "", endLat: "", endLng: "" });
   const [coordinateMessages, setCoordinateMessages] = useState({ start: "", end: "" });
-  const [hoverPoint, setHoverPoint] = useState<RoutePoint | null>(null);
   const [notice, setNotice] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
 
@@ -91,10 +93,11 @@ export function CoastPathApp() {
     [route, selectedDay],
   );
   const climbing = useMemo(() => ascentDescent(dayPoints), [dayPoints]);
-  const dayDistance = selectedDay ? selectedDay.endDistanceKm - selectedDay.startDistanceKm : 0;
+  const dayDistance = selectedDay ? dayDistanceKm(selectedDay) : 0;
   const rawDayProgress = matched && selectedDay ? matched.distanceKm - selectedDay.startDistanceKm : 0;
   const dayProgress = Math.max(0, Math.min(dayDistance, rawDayProgress));
-  const trailProgress = matched?.distanceKm ?? 0;
+  const plannedDistance = totalPlannedDistanceKm(days);
+  const planProgress = matched ? plannedProgressKm(days, matched.distanceKm) : 0;
   const chartData = dayPoints.map((point) => ({
     ...point,
     dayKm: Number((point.distanceKm - (selectedDay?.startDistanceKm ?? 0)).toFixed(2)),
@@ -178,9 +181,13 @@ export function CoastPathApp() {
     if (editor.day.endDistanceKm <= editor.day.startDistanceKm) {
       setNotice("The end point needs to be farther along the trail than the start."); return;
     }
-    const updated = normalizeDayOrders([...days.filter((day) => day.id !== editor.day.id), editor.day]);
+    const savedDay = { ...editor.day, startName: editor.day.startName.trim(), endName: editor.day.endName.trim() };
+    if (!savedDay.startName || !savedDay.endName) {
+      setNotice("Give both the start and end locations a name."); return;
+    }
+    const updated = normalizeDayOrders([...days.filter((day) => day.id !== savedDay.id), savedDay]);
     await db.days.bulkPut(updated);
-    setDays(updated); setSelectedId(editor.day.id); setEditor(null); setNotice("Walking day saved offline.");
+    setDays(updated); setSelectedId(savedDay.id); setEditor(null); setNotice("Walking day saved offline.");
   };
 
   const deleteDay = async (day: WalkingDay) => {
@@ -197,7 +204,7 @@ export function CoastPathApp() {
     const previous = days.find((day) => day.order === editor.day.order - 1) ?? days.at(-1);
     if (!previous) return;
     const coordinate = previous.endCoordinate ?? routePointAt(route, previous.endDistanceKm);
-    setEditor({ ...editor, day: { ...editor.day, startName: previous.endName, startDistanceKm: previous.endDistanceKm, startCoordinate: previous.endCoordinate } });
+    setEditor({ ...editor, day: copyPreviousDayEnd(editor.day, previous) });
     if (coordinate) setCoordinateDrafts((values) => ({ ...values, startLat: coordinate.lat.toFixed(6), startLng: coordinate.lng.toFixed(6) }));
     setCoordinateMessages((messages) => ({ ...messages, start: previous.endCoordinate ? `Matched ${Math.round(previous.endCoordinate.offRouteM)} m from the path` : "" }));
   };
@@ -262,7 +269,7 @@ export function CoastPathApp() {
   };
 
   if (loadingError) return <main className="loading-state"><CircleAlert /><h1>Coastline could not start</h1><p>{loadingError}</p></main>;
-  if (!route || !selectedDay) return <main className="loading-state"><span className="loading-ring" /><h1>Preparing the coast path…</h1><p>Saving the route for offline use.</p></main>;
+  if (!route) return <main className="loading-state"><span className="loading-ring" /><h1>Preparing the coast path…</h1><p>Saving the route for offline use.</p></main>;
 
   return (
     <div className="app-shell">
@@ -281,7 +288,7 @@ export function CoastPathApp() {
       </header>
 
       <main className="main-content">
-        {tab === "track" && (
+        {tab === "track" && selectedDay && (
           <>
             <section className="hero-row">
               <div>
@@ -296,20 +303,23 @@ export function CoastPathApp() {
               </label>
             </section>
 
-            <section className="map-card">
-              <CoastMap route={route} day={selectedDay} gps={gps} matched={matched} hoverPoint={hoverPoint} />
-              <div className="map-label"><span>DAY {selectedDay.order}</span><strong>{formatKm(dayDistance)}</strong></div>
+            <section className="tracking-card panel">
+              <div className="tracking-copy">
+                <p className="eyebrow"><Footprints size={14} /> Day {selectedDay.order} progress</p>
+                <h2>{gps ? `${formatKm(dayProgress)} walked` : `${formatKm(dayDistance)} planned`}</h2>
+                <p>{matched ? `${matched.distanceKm.toFixed(1)} km along the path · ${Math.round(matched.offRouteM)} m from the trail` : "Use your iPhone location to calculate progress along this section."}</p>
+                <div className="progress-track" aria-label={`${Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}% of this day completed`}><span style={{ width: `${dayDistance ? dayProgress / dayDistance * 100 : 0}%` }} /></div>
+              </div>
               <button className={`locate-button ${watchId !== null ? "active" : ""}`} onClick={startGps}>
                 <LocateFixed size={19} /> {watchId !== null ? "Stop locating" : "Use my location"}
               </button>
-              {!online && <div className="offline-map-note"><CloudOff size={15} /> Cached map areas remain visible offline</div>}
             </section>
 
             {gpsError && <div className="alert"><CircleAlert size={18} /><span>{gpsError}</span></div>}
 
             <section className="metric-grid" aria-label="Walking progress">
               <Metric icon={<Footprints />} label="Today" value={gps ? formatKm(dayProgress) : "Start GPS"} sub={gps ? `${Math.max(0, dayDistance - dayProgress).toFixed(1)} km remaining` : formatKm(dayDistance) + " planned"} accent="coral" />
-              <Metric icon={<RouteIcon />} label="Whole trail" value={gps ? formatKm(trailProgress) : "0.0 km"} sub={`${Math.max(0, route.officialDistanceKm - trailProgress).toFixed(1)} km remaining`} accent="green" />
+              <Metric icon={<RouteIcon />} label="Whole plan" value={gps ? formatKm(planProgress) : formatKm(plannedDistance)} sub={gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining of ${plannedDistance.toFixed(1)} km` : `Total across ${days.length} planned ${days.length === 1 ? "day" : "days"}`} accent="green" />
               <Metric icon={<Satellite />} label="GPS match" value={matched ? `±${Math.round(gps?.accuracy ?? 0)} m` : "Not active"} sub={matched ? `${Math.round(matched.offRouteM)} m from path` : "Tap ‘Use my location’"} accent="blue" />
             </section>
 
@@ -321,14 +331,7 @@ export function CoastPathApp() {
                 </div>
                 <div className="chart-wrap">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -16 }}
-                      onMouseMove={(state) => {
-                        const index = typeof state.activeTooltipIndex === "number"
-                          ? state.activeTooltipIndex
-                          : Number(state.activeTooltipIndex);
-                        const payload = chartData[index];
-                        if (payload) setHoverPoint(payload);
-                      }} onMouseLeave={() => setHoverPoint(null)}>
+                    <AreaChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -16 }}>
                       <defs><linearGradient id="elevationFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#e97651" stopOpacity=".44"/><stop offset="100%" stopColor="#e97651" stopOpacity=".05"/></linearGradient></defs>
                       <CartesianGrid stroke="#dbe3df" strokeDasharray="3 5" vertical={false} />
                       <XAxis dataKey="dayKm" type="number" domain={[0, Math.ceil(dayDistance)]} unit=" km" tick={{ fontSize: 11, fill: "#66756f" }} axisLine={false} tickLine={false} />
@@ -338,7 +341,7 @@ export function CoastPathApp() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="chart-note">Move across the profile to highlight the same place on the map. Bundled elevation is illustrative until a GPX with elevation is imported.</p>
+                <p className="chart-note">Move across the profile to inspect distance and elevation. Bundled elevation is illustrative until a GPX with elevation is imported.</p>
               </div>
 
               <aside className="day-summary panel">
@@ -350,12 +353,16 @@ export function CoastPathApp() {
           </>
         )}
 
+        {tab === "track" && !selectedDay && (
+          <section className="empty-state"><Footprints /><h1>No walking days planned</h1><p>Add your first section to start tracking progress.</p><button className="primary-button" onClick={() => { setTab("plan"); openNewDay(); }}><Plus size={18} /> Add first day</button></section>
+        )}
+
         {tab === "plan" && (
           <section className="workspace-section">
             <div className="section-heading"><div><p className="eyebrow"><CalendarDays size={14} /> Your itinerary</p><h1>Planned walking days</h1><p>Choose named points along the route. Each day is saved on this device.</p></div><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add a day</button></div>
             <div className="days-list">
               {days.map((day) => {
-                const distance = day.endDistanceKm - day.startDistanceKm;
+                const distance = dayDistanceKm(day);
                 return <article className={`day-row ${selectedId === day.id ? "selected" : ""}`} key={day.id}>
                   <button className="day-main" onClick={() => { setSelectedId(day.id); setTab("track"); }}>
                     <span className="day-number">{String(day.order).padStart(2, "0")}</span>
@@ -372,12 +379,12 @@ export function CoastPathApp() {
 
         {tab === "data" && (
           <section className="workspace-section">
-            <div className="section-heading"><div><p className="eyebrow"><Map size={14} /> Route library</p><h1>Offline trail data</h1><p>The route is stored in IndexedDB on this iPhone after the first visit.</p></div></div>
+            <div className="section-heading"><div><p className="eyebrow"><RouteIcon size={14} /> Route library</p><h1>Offline trail data</h1><p>The route is stored in IndexedDB on this iPhone after the first visit.</p></div></div>
             <div className="data-grid">
               <article className="data-card panel"><span className="data-icon"><RouteIcon /></span><p className="eyebrow">Active route</p><h2>{route.name}</h2><dl><div><dt>Route length</dt><dd>{formatKm(route.officialDistanceKm, 0)}</dd></div><div><dt>Route points</dt><dd>{route.points.filter(Boolean).length.toLocaleString()}</dd></div><div><dt>Geometry</dt><dd>{route.geometrySource}</dd></div><div><dt>Elevation</dt><dd>{route.elevationSource}</dd></div></dl></article>
               <article className="import-card panel"><span className="data-icon coral"><FileUp /></span><p className="eyebrow">Bring your own data</p><h2>Import a GPX route</h2><p>A GPX track with elevation replaces the bundled route and powers the map, profile and map-matching — entirely on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled SWCP route</button></article>
             </div>
-            <div className="offline-explainer"><CloudOff /><div><strong>Designed for patchy coastal signal</strong><p>Plans, route geometry, elevation profiles and GPS map-matching work offline. Map tiles are cached as you view them, so open each day’s map before setting out.</p></div></div>
+            <div className="offline-explainer"><CloudOff /><div><strong>Designed for patchy coastal signal</strong><p>Plans, route geometry, elevation profiles, coordinates and GPS calculations work offline after the app is prepared.</p></div></div>
           </section>
         )}
       </main>
@@ -385,7 +392,7 @@ export function CoastPathApp() {
       <nav className="bottom-nav" aria-label="Main navigation">
         <NavButton active={tab === "track"} onClick={() => setTab("track")} icon={<Navigation />} label="Track" />
         <NavButton active={tab === "plan"} onClick={() => setTab("plan")} icon={<CalendarDays />} label="Plan" />
-        <NavButton active={tab === "data"} onClick={() => setTab("data")} icon={<Map />} label="Route" />
+        <NavButton active={tab === "data"} onClick={() => setTab("data")} icon={<RouteIcon />} label="Route" />
       </nav>
 
       {editor && route && (
@@ -396,10 +403,12 @@ export function CoastPathApp() {
             <label>Start point<select value={editor.day.startName} onChange={(event) => chooseCheckpoint("start", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.startName) && <option value={editor.day.startName}>{editor.day.startName}</option>}{route.checkpoints.map((point) => <option key={`s-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
             <label className="distance-control"><span><b>Fine-tune start</b><em>{editor.day.startDistanceKm.toFixed(1)} km along trail</em></span><input type="range" min="0" max={route.officialDistanceKm} step="0.1" value={editor.day.startDistanceKm} onChange={(event) => fineTuneBoundary("start", Number(event.target.value))} /></label>
             <CoordinateMatcher field="start" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.start} onMatch={() => matchCoordinates("start")} />
+            <label>Start location name<input type="text" placeholder="For example: The harbour steps" value={editor.day.startName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "start", event.target.value) })} /></label>
             {editor.day.order > 1 && <button className="copy-button" onClick={usePreviousEnd}><ArrowDown size={16} /> Start where the previous day ended</button>}
             <label>End point<select value={editor.day.endName} onChange={(event) => chooseCheckpoint("end", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.endName) && <option value={editor.day.endName}>{editor.day.endName}</option>}{route.checkpoints.map((point) => <option key={`e-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
             <label className="distance-control"><span><b>Fine-tune end</b><em>{editor.day.endDistanceKm.toFixed(1)} km along trail</em></span><input type="range" min="0" max={route.officialDistanceKm} step="0.1" value={editor.day.endDistanceKm} onChange={(event) => fineTuneBoundary("end", Number(event.target.value))} /></label>
             <CoordinateMatcher field="end" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.end} onMatch={() => matchCoordinates("end")} />
+            <label>End location name<input type="text" placeholder="For example: Café by the beach" value={editor.day.endName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "end", event.target.value) })} /></label>
             <div className="editor-preview"><span>Planned distance</span><strong>{Math.max(0, editor.day.endDistanceKm - editor.day.startDistanceKm).toFixed(1)} km</strong></div>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setEditor(null)}>Cancel</button><button className="primary-button" onClick={saveDay}><Check size={17} /> Save day offline</button></div>
           </section>
