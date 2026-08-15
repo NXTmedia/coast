@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { CoastMap } from "./CoastMap";
 import { db, loadInitialData, replaceRoute } from "../lib/db";
+import { normalizeDayOrders } from "../lib/days";
 import {
   ascentDescent, importGpx, nearestRoutePosition, pointsForDay, routePointAt,
 } from "../lib/route";
@@ -177,15 +178,18 @@ export function CoastPathApp() {
     if (editor.day.endDistanceKm <= editor.day.startDistanceKm) {
       setNotice("The end point needs to be farther along the trail than the start."); return;
     }
-    await db.days.put(editor.day);
-    const updated = [...days.filter((day) => day.id !== editor.day.id), editor.day].sort((a, b) => a.order - b.order);
+    const updated = normalizeDayOrders([...days.filter((day) => day.id !== editor.day.id), editor.day]);
+    await db.days.bulkPut(updated);
     setDays(updated); setSelectedId(editor.day.id); setEditor(null); setNotice("Walking day saved offline.");
   };
 
   const deleteDay = async (day: WalkingDay) => {
-    await db.days.delete(day.id);
-    const updated = days.filter((candidate) => candidate.id !== day.id);
-    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setNotice("Walking day removed.");
+    const updated = normalizeDayOrders(days.filter((candidate) => candidate.id !== day.id));
+    await db.transaction("rw", db.days, async () => {
+      await db.days.delete(day.id);
+      if (updated.length) await db.days.bulkPut(updated);
+    });
+    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setNotice("Walking day removed and days renumbered.");
   };
 
   const usePreviousEnd = () => {

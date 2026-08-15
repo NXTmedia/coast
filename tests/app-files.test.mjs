@@ -23,9 +23,12 @@ test("ships the PWA and offline route dataset", async () => {
 test("includes the requested offline-first features", async () => {
   const app = await readFile(new URL("app/components/CoastPathApp.tsx", root), "utf8");
   const database = await readFile(new URL("app/lib/db.ts", root), "utf8");
+  const days = await readFile(new URL("app/lib/days.ts", root), "utf8");
   const matching = await readFile(new URL("app/lib/route.ts", root), "utf8");
   assert.match(database, /IndexedDB|Dexie|coastline-swcp/i);
   assert.match(database, /bundledRouteData/);
+  assert.match(database, /normalizeDayOrders/);
+  assert.match(days, /order: index \+ 1/);
   assert.match(app, /watchPosition/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Match to trail/);

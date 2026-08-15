@@ -3,6 +3,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../../public/data/swcp-route.json";
+import { normalizeDayOrders } from "./days";
 
 type StoredRoute = { key: string; data: TrailRoute };
 type StoredSetting = { key: string; value: string };
@@ -68,6 +69,7 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
     storageReady = false;
   }
   if (!days.length) days = defaultDays(route);
+  days = normalizeDayOrders(days);
 
   // The route is compiled into the app, so startup never depends on a network
   // request. Refresh IndexedDB in the background without blocking the UI.
