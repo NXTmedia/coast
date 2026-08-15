@@ -1,0 +1,12 @@
+{
+  "name": "Coastline — South West Coast Path Tracker",
+  "short_name": "Coastline",
+  "description": "Offline-first planning and live progress tracking for the South West Coast Path.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f3eb",
+  "theme_color": "#183f35",
+  "orientation": "portrait-primary",
+  "categories": ["travel", "navigation", "fitness"]
+}
+

@@ -1,0 +1,50 @@
+export type RoutePoint = {
+  lng: number;
+  lat: number;
+  elevationM: number;
+  distanceKm: number;
+};
+
+export type Checkpoint = {
+  name: string;
+  lng: number;
+  lat: number;
+  distanceKm: number;
+};
+
+export type TrailRoute = {
+  id: string;
+  name: string;
+  officialDistanceKm: number;
+  generatedAt: string;
+  elevationSource: string;
+  geometrySource: string;
+  points: Array<RoutePoint | null>;
+  checkpoints: Checkpoint[];
+};
+
+export type WalkingDay = {
+  id: string;
+  order: number;
+  date: string;
+  startName: string;
+  endName: string;
+  startDistanceKm: number;
+  endDistanceKm: number;
+  completedDistanceKm?: number;
+  startCoordinate?: CoordinateMatch;
+  endCoordinate?: CoordinateMatch;
+};
+
+export type CoordinateMatch = {
+  lat: number;
+  lng: number;
+  offRouteM: number;
+};
+
+export type MatchedPosition = {
+  lng: number;
+  lat: number;
+  distanceKm: number;
+  offRouteM: number;
+};
