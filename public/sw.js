@@ -1,19 +1,62 @@
-const VERSION = "coastline-v1";
+const VERSION = "coastline-v2";
 const SHELL_CACHE = `${VERSION}-shell`;
 const MAP_CACHE = `${VERSION}-maps`;
 const SHELL = ["/", "/manifest.webmanifest", "/data/swcp-route.json"];
 
+async function cacheShell() {
+  const cache = await caches.open(SHELL_CACHE);
+  const results = await Promise.allSettled(SHELL.map(async (url) => {
+    const response = await fetch(new Request(url, { cache: "reload" }));
+    if (!response.ok) throw new Error(`Could not cache ${url}`);
+    await cache.put(url, response);
+  }));
+  return results.every((result) => result.status === "fulfilled");
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  // A partial precache must not prevent the worker from activating. The app
+  // retries this preparation and only reports ready after it succeeds.
+  event.waitUntil(cacheShell().catch(() => false).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => !key.startsWith(VERSION)).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("coastline-") && !key.startsWith(VERSION)).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "PREPARE_OFFLINE") return;
+  event.waitUntil(cacheShell().then((ready) => event.ports[0]?.postMessage({ ready })).catch(() => event.ports[0]?.postMessage({ ready: false })));
+});
+
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch {
+    return new Response("Offline resource unavailable", { status: 503, headers: { "Content-Type": "text/plain" } });
+  }
+}
+
+async function navigationResponse(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put("/", response.clone());
+    return response;
+  } catch {
+    return (await cache.match(request))
+      ?? (await cache.match("/"))
+      ?? new Response("Coastline is not available offline yet. Reconnect once and wait for ‘Offline ready’.", { status: 503, headers: { "Content-Type": "text/plain" } });
+  }
+}
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
@@ -21,32 +64,20 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (url.hostname === "tile.openstreetmap.org") {
-    event.respondWith(
-      caches.open(MAP_CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        try {
-          const response = await fetch(request);
-          if (response.ok) cache.put(request, response.clone());
-          return response;
-        } catch {
-          return new Response("", { status: 504, statusText: "Map tile not cached" });
-        }
-      }),
-    );
+    event.respondWith(cacheFirst(request, MAP_CACHE));
+    return;
+  }
+  if (url.origin !== self.location.origin) return;
+  if (request.mode === "navigate") {
+    event.respondWith(navigationResponse(request));
     return;
   }
 
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(request).then(async (cached) => {
-        const network = fetch(request).then((response) => {
-          if (response.ok) caches.open(SHELL_CACHE).then((cache) => cache.put(request, response.clone()));
-          return response;
-        }).catch(() => cached);
-        return cached ?? network ?? (request.mode === "navigate" ? caches.match("/") : undefined);
-      }),
-    );
-  }
+  const cacheableAsset = request.destination === "script"
+    || request.destination === "style"
+    || request.destination === "font"
+    || request.destination === "image"
+    || url.pathname === "/manifest.webmanifest"
+    || url.pathname === "/data/swcp-route.json";
+  if (cacheableAsset) event.respondWith(cacheFirst(request, SHELL_CACHE));
 });
-

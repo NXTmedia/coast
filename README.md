@@ -39,7 +39,7 @@ Browser location only works in a secure context. `localhost` is treated as secur
 
 ## Offline behaviour
 
-On the first successful visit, the app shell and bundled route are cached. Route data and walking plans are also stored in IndexedDB. Open each planned day’s map while online before setting out: OpenStreetMap tiles are cached as they are viewed, but this prototype does not yet offer bulk offline tile downloads.
+The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Wait until the header says **Offline ready** before closing the first session. Open each planned day’s map while online before setting out: OpenStreetMap tiles are cached as they are viewed, but this prototype does not yet offer bulk offline tile downloads.
 
 ## Trail data
 

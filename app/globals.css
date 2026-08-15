@@ -53,7 +53,9 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 .brand small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .11em; margin-top: 3px; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .status-pill { display: inline-flex; gap: 6px; align-items: center; padding: 8px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-.status-pill.online { color: #1f6852; background: #e3f1e9; }
+.status-pill.ready { color: #1f6852; background: #e3f1e9; }
+.status-pill.preparing { color: #675b27; background: #f5efcf; }
+.status-pill.limited { color: #8b4a35; background: #fae4dc; }
 .status-pill.offline { color: #825b1f; background: #fff0cf; }
 .icon-button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: var(--paper); border-radius: 11px; display: flex; align-items: center; gap: 7px; cursor: pointer; font-weight: 700; font-size: 13px; }
 

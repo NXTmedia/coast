@@ -19,6 +19,7 @@ import type { RoutePoint, TrailRoute, WalkingDay } from "../types";
 type Tab = "track" | "plan" | "data";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
 type CoordinateDrafts = { startLat: string; startLng: string; endLat: string; endLng: string };
+type OfflineState = "preparing" | "ready" | "limited";
 
 const formatKm = (value: number, digits = 1) => `${value.toFixed(digits)} km`;
 const formatDate = (value: string) => value
@@ -35,6 +36,7 @@ export function CoastPathApp() {
   const [gpsError, setGpsError] = useState("");
   const [watchId, setWatchId] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
+  const [offlineState, setOfflineState] = useState<OfflineState>("preparing");
   const [editor, setEditor] = useState<EditorState>(null);
   const [coordinateDrafts, setCoordinateDrafts] = useState<CoordinateDrafts>({ startLat: "", startLng: "", endLat: "", endLng: "" });
   const [coordinateMessages, setCoordinateMessages] = useState({ start: "", end: "" });
@@ -44,8 +46,9 @@ export function CoastPathApp() {
 
   useEffect(() => {
     loadInitialData()
-      .then(({ route: loadedRoute, days: loadedDays }) => {
+      .then(({ route: loadedRoute, days: loadedDays, storageReady }) => {
         setRoute(loadedRoute); setDays(loadedDays); setSelectedId(loadedDays[0]?.id ?? "");
+        if (!storageReady) setOfflineState("limited");
       })
       .catch((error) => setLoadingError(error instanceof Error ? error.message : "Unable to load the trail."));
     setOnline(navigator.onLine);
@@ -61,9 +64,12 @@ export function CoastPathApp() {
         // A development service worker can cache stale Vite module URLs after HMR.
         navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister()));
         caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("coastline-")).map((key) => caches.delete(key))));
+        setOfflineState("ready");
       } else {
-        navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+        prepareOfflineApp().then((ready) => setOfflineState((current) => current === "limited" ? "limited" : ready ? "ready" : "limited"));
       }
+    } else {
+      setOfflineState("limited");
     }
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -262,8 +268,9 @@ export function CoastPathApp() {
           <span><strong>Coastline</strong><small>South West Coast Path</small></span>
         </button>
         <div className="topbar-actions">
-          <span className={`status-pill ${online ? "online" : "offline"}`}>
-            {online ? <Check size={14} /> : <CloudOff size={14} />}{online ? "Offline ready" : "Working offline"}
+          <span className={`status-pill ${!online ? "offline" : offlineState}`}>
+            {!online ? <CloudOff size={14} /> : offlineState === "ready" ? <Check size={14} /> : <Download size={14} />}
+            {!online ? "Working offline" : offlineState === "ready" ? "Offline ready" : offlineState === "preparing" ? "Preparing offline" : "Offline setup incomplete"}
           </span>
           {installPrompt && <button className="icon-button install-button" onClick={installApp}><Download size={17} /><span>Install</span></button>}
         </div>
@@ -433,4 +440,27 @@ function CoordinateMatcher({ field, drafts, setDrafts, message, onMatch }: {
     </div>
     {message && <p className={message.startsWith("Matched") ? "coordinate-result success" : "coordinate-result"}>{message}</p>}
   </div>;
+}
+
+async function prepareOfflineApp(): Promise<boolean> {
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    const readyRegistration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Service worker timeout")), 8000)),
+    ]);
+    const worker = readyRegistration.active ?? registration.active;
+    if (!worker) return false;
+    return await new Promise<boolean>((resolve) => {
+      const channel = new MessageChannel();
+      const timeout = window.setTimeout(() => resolve(false), 10000);
+      channel.port1.onmessage = (event) => {
+        window.clearTimeout(timeout);
+        resolve(event.data?.ready === true);
+      };
+      worker.postMessage({ type: "PREPARE_OFFLINE" }, [channel.port2]);
+    });
+  } catch {
+    return false;
+  }
 }

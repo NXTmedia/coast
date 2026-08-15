@@ -13,6 +13,9 @@ test("ships the PWA and offline route dataset", async () => {
   assert.equal(manifest.display, "standalone");
   assert.match(serviceWorker, /tile\.openstreetmap\.org/);
   assert.match(serviceWorker, /\/data\/swcp-route\.json/);
+  assert.match(serviceWorker, /PREPARE_OFFLINE/);
+  assert.match(serviceWorker, /navigationResponse/);
+  assert.doesNotMatch(serviceWorker, /return cached \?\? network/);
   assert.ok(route.points.filter(Boolean).length > 4000);
   assert.ok(route.officialDistanceKm >= 1000);
 });
@@ -22,6 +25,7 @@ test("includes the requested offline-first features", async () => {
   const database = await readFile(new URL("app/lib/db.ts", root), "utf8");
   const matching = await readFile(new URL("app/lib/route.ts", root), "utf8");
   assert.match(database, /IndexedDB|Dexie|coastline-swcp/i);
+  assert.match(database, /bundledRouteData/);
   assert.match(app, /watchPosition/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Match to trail/);
