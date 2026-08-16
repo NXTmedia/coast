@@ -18,14 +18,14 @@ import {
   Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { db, loadInitialData, replaceRoute, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
+import { db, loadInitialData, replaceRoute, replaceRouteAndDays, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
 import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
   breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
   fillWalkingDayDates, localDateKey, plannedProgressKm, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
-  ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, pointsForDay,
+  ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, pointsForDay, prepareRouteImport,
   routePointAt, simulatedGpsNearCheckpoint,
 } from "../lib/route";
 import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
@@ -356,13 +356,28 @@ export function CoastPathApp() {
   };
 
   const handleImport = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || !route) return;
     try {
       const imported = importGpx(await file.text(), file.name);
-      await replaceRoute(imported);
+      const prepared = prepareRouteImport(route, imported, days);
+      const unmatchedLocations = route.checkpoints.length - prepared.matchedLocationCount;
+      const unmatchedDays = days.length - prepared.days.length;
+      const warning = [
+        `Import “${file.name}” and replace the current GPX route?`,
+        `${prepared.matchedLocationCount} of ${route.checkpoints.length} saved locations and ${prepared.days.length} of ${days.length} planned stages can be matched to the new route.`,
+        unmatchedLocations || unmatchedDays
+          ? `${unmatchedLocations} locations and ${unmatchedDays} stages are more than 5 km from the new route and will be removed.`
+          : "All saved locations and planned stages will be preserved.",
+        "Your itinerary start date will be kept. This change applies only to this device.",
+      ].join("\n\n");
+      if (!window.confirm(warning)) {
+        setNotice("GPX import cancelled. Nothing was changed.");
+        return;
+      }
+      await replaceRouteAndDays(prepared.route, prepared.days);
       const seeded = await loadInitialData();
       setRoute(seeded.route); setDays(seeded.days); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
-      setNotice(`${imported.name} is stored on this device and ready offline.`);
+      setNotice(`${imported.name} is ready offline. Preserved ${prepared.matchedLocationCount} locations and ${prepared.days.length} planned stages.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "The GPX file could not be imported.");
     }
@@ -524,7 +539,7 @@ export function CoastPathApp() {
               <summary><span><RouteIcon /> Route data &amp; GPX</span><small>Import, restore or inspect the offline trail</small></summary>
               <div className="advanced-route-content">
                 <div className="route-facts"><div><span>Active route</span><strong>{route.name}</strong></div><div><span>Length</span><strong>{formatKm(route.officialDistanceKm)}</strong></div><div><span>Points</span><strong>{route.points.filter(Boolean).length.toLocaleString()}</strong></div><div><span>Elevation</span><strong>{route.elevationSource}</strong></div></div>
-                <div className="route-import"><p>A GPX track with elevation replaces the bundled route on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Mousehole–Falmouth route</button></div>
+                <div className="route-import"><p>A GPX track with elevation replaces the current route after confirmation. Saved locations and stages are matched onto it where possible.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => { handleImport(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Mousehole–Falmouth route</button></div>
                 <div className="offline-explainer"><CloudOff /><div><strong>Available offline</strong><p>The bundled route and its {route.points.filter(Boolean).length.toLocaleString()} elevation points are stored with the app.</p></div></div>
               </div>
             </details>

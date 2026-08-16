@@ -119,6 +119,14 @@ export async function replaceRoute(route: TrailRoute) {
   await db.days.clear();
 }
 
+export async function replaceRouteAndDays(route: TrailRoute, days: WalkingDay[]) {
+  await db.transaction("rw", db.routes, db.days, async () => {
+    await db.routes.put({ key: "active", data: route });
+    await db.days.clear();
+    if (days.length) await db.days.bulkPut(days);
+  });
+}
+
 export async function saveRouteCheckpoints(route: TrailRoute, checkpoints: Checkpoint[]): Promise<TrailRoute> {
   const updated = { ...route, checkpoints: [...checkpoints].sort((a, b) => a.distanceKm - b.distanceKm) };
   await db.routes.put({ key: "active", data: updated });

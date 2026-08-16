@@ -25,7 +25,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Optional break days between stages that shift every later date
 - Save and change confirmations that dismiss automatically after four seconds
 - Device-local persistence in IndexedDB (Dexie)
-- GPX import, including elevation values where the GPX contains them
+- Confirmed GPX import, including elevation values, with impact counts and automatic rematching of saved locations and stages
 - Installable PWA and service worker
 - Complete versioned app-shell caching before the app reports that it is ready offline
 - Offline route, elevation, plans, chart and GPS calculations

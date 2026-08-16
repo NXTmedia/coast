@@ -99,7 +99,7 @@ export function migrateDaysToRoute(days: WalkingDay[], sourceRoute: TrailRoute, 
     const start = nearestRoutePosition(targetRoute, sourceStart.lng, sourceStart.lat);
     const end = nearestRoutePosition(targetRoute, sourceEnd.lng, sourceEnd.lat);
     if (!start || !end || start.offRouteM > maximumOffsetM || end.offRouteM > maximumOffsetM || end.distanceKm <= start.distanceKm) return [];
-    return [{ ...day, startDistanceKm: start.distanceKm, endDistanceKm: end.distanceKm }];
+    return [{ ...day, startDistanceKm: start.distanceKm, endDistanceKm: end.distanceKm, startCoordinate: undefined, endCoordinate: undefined }];
   });
 }
 
@@ -109,6 +109,25 @@ export function migrateCheckpointsToRoute(checkpoints: Checkpoint[], targetRoute
     if (!match || match.offRouteM > maximumOffsetM) return [];
     return [{ name: checkpoint.name, lng: match.lng, lat: match.lat, distanceKm: match.distanceKm }];
   }).sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+export function prepareRouteImport(sourceRoute: TrailRoute, targetRoute: TrailRoute, days: WalkingDay[], maximumOffsetM = 5000) {
+  const migratedCheckpoints = migrateCheckpointsToRoute(sourceRoute.checkpoints, targetRoute, maximumOffsetM);
+  const checkpoints = [...migratedCheckpoints];
+  const names = new Set(checkpoints.map((point) => point.name.toLowerCase()));
+  for (const endpoint of targetRoute.checkpoints) {
+    const alreadyRepresented = checkpoints.some((point) => Math.abs(point.distanceKm - endpoint.distanceKm) <= 0.05);
+    if (!alreadyRepresented && !names.has(endpoint.name.toLowerCase())) {
+      checkpoints.push(endpoint);
+      names.add(endpoint.name.toLowerCase());
+    }
+  }
+  checkpoints.sort((a, b) => a.distanceKm - b.distanceKm);
+  return {
+    route: { ...targetRoute, checkpoints },
+    days: migrateDaysToRoute(days, sourceRoute, targetRoute, maximumOffsetM),
+    matchedLocationCount: migratedCheckpoints.length,
+  };
 }
 
 export function ascentDescent(points: RoutePoint[]) {

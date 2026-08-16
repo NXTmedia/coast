@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ascentDescent, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition, osMapsUrl,
+  ascentDescent, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition, osMapsUrl, prepareRouteImport,
   pointsForDay, simulatedGpsNearCheckpoint,
 } from "../app/lib/route.ts";
 
@@ -68,6 +68,34 @@ test("saved locations migrate onto an extended bundled route", () => {
   assert.equal(migrated[0].name, "Custom harbour");
   assert.ok(Math.abs(migrated[0].distanceKm - 5) < 0.01);
   assert.ok(migrated[0].lat < 50.00001);
+});
+
+test("a route import preserves matching locations and planned stages", () => {
+  const source = {
+    ...route,
+    checkpoints: [
+      { name: "Start village", lng: -4, lat: 50, distanceKm: 0 },
+      { name: "Finish village", lng: -3.9, lat: 50, distanceKm: 10 },
+      { name: "Distant place", lng: -6, lat: 52, distanceKm: 6 },
+    ],
+  };
+  const target = {
+    ...route,
+    id: "imported",
+    checkpoints: [
+      { name: "Route start", lng: -4, lat: 50, distanceKm: 0 },
+      { name: "Route end", lng: -3.9, lat: 50, distanceKm: 10 },
+    ],
+  };
+  const planned = [{
+    id: "day-1", order: 1, date: "2026-09-01", startName: "Start village", endName: "Finish village",
+    startDistanceKm: 0, endDistanceKm: 10,
+  }];
+  const prepared = prepareRouteImport(source, target, planned);
+  assert.equal(prepared.matchedLocationCount, 2);
+  assert.deepEqual(prepared.route.checkpoints.map((point) => point.name), ["Start village", "Finish village"]);
+  assert.equal(prepared.days.length, 1);
+  assert.equal(prepared.days[0].date, "2026-09-01");
 });
 
 test("OS Maps links contain exact coordinates and the fixed Leisure map settings", () => {

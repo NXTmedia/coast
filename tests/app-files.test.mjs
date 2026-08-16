@@ -92,6 +92,10 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /label="Route"/);
   assert.doesNotMatch(app, /Offline trail data/);
   assert.match(app, /Match and save/);
+  assert.match(app, /window\.confirm\(warning\)/);
+  assert.match(app, /prepareRouteImport\(route, imported, days\)/);
+  assert.match(app, /replaceRouteAndDays\(prepared\.route, prepared\.days\)/);
+  assert.match(app, /GPX import cancelled\. Nothing was changed\./);
   assert.doesNotMatch(app, /Fine-tune start/);
   assert.doesNotMatch(app, /Fine-tune end/);
   assert.match(app, /AreaChart/);
