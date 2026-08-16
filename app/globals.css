@@ -114,7 +114,6 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 .climb-summary { display: flex; gap: 14px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .climb-summary span { display: flex; gap: 3px; align-items: center; }.climb-summary svg { width: 14px; color: var(--coral); }
 .chart-wrap { width: 100%; height: 230px; }
-.chart-note { color: var(--muted); font-size: 10px; line-height: 1.5; margin: -2px 8px 0; }
 .track-day-picker { display: flex; justify-content: flex-end; margin-bottom: 14px; }
 .elevation-tooltip { background: rgba(23,53,45,.94); color: white; border-radius: 10px; padding: 8px 10px; box-shadow: 0 7px 18px rgba(20,50,42,.2); }
 .elevation-tooltip strong, .elevation-tooltip span { display: block; }.elevation-tooltip span { opacity: .75; font-size: 10px; margin-top: 2px; }

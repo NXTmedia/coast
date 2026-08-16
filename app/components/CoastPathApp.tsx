@@ -389,7 +389,6 @@ export function CoastPathApp() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <p className="chart-note">{liveProfilePoint ? "Your live position is marked in blue. " : "Start location tracking to show your position on this profile. "}The bundled profile uses elevation from the supplied Penzance–Falmouth GPX.</p>
             </section>
 
             <section className="track-day-picker">

@@ -59,6 +59,8 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /<h2>\{selectedDay\.startName\} <ArrowRight \/> \{selectedDay\.endName\}<\/h2>/);
   assert.match(app, /profile-day-line/);
   assert.match(app, /<time dateTime=\{selectedDay\.date \|\| undefined\}>\{formatDate\(selectedDay\.date\)\}<\/time>/);
+  assert.doesNotMatch(app, /chart-note/);
+  assert.doesNotMatch(app, /The bundled profile uses elevation/);
   assert.doesNotMatch(app, /<section className="hero-row">/);
   assert.doesNotMatch(app, /<Navigation size=\{14\} \/> Trail tracker/);
   assert.doesNotMatch(app, /CoastMap/);
