@@ -9,7 +9,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Walking-stage start and end selection from the saved Locations list
 - Custom named locations with coordinate-to-path matching on the Locations screen
 - Editable saved-location list with coordinate-to-GPX matching
-- Dedicated Locations screen for place editing, Google Maps verification, GPS simulation and advanced GPX tools
+- Dedicated Locations screen for place editing, OS Maps links, GPS simulation and advanced GPX tools
 - Elevation profile for each selected day
 - Elevation profile positioned first beneath the Track screen top bar, titled with the selected start and end points and labelled with its day and date
 - Automatic phone-landscape profile mode that fills the available screen and restores the normal interface in portrait
@@ -17,7 +17,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - High-accuracy iPhone browser location via `watchPosition`
 - GPS simulation about 3 km beyond Lizard Point for testing without sharing device location
 - Nearest-point matching and progress for the selected day and total planned sections
-- Start and end location links that open their exact coordinates in Google Maps
+- Start and end location links that open their exact coordinates in OS Maps with Leisure mapping at zoom level 13
 - Previous/next day controls and automatic selection of today's dated walk
 - One itinerary start date with automatically calculated stage dates
 - Touch-friendly drag-and-drop stage reordering with automatic renumbering and rescheduling

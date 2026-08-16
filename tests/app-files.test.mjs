@@ -71,8 +71,11 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /Match to trail/);
   assert.doesNotMatch(app, /CoordinateMatcher/);
   assert.match(app, /nearestRoutePosition\(route, lng, lat\)/);
-  assert.match(app, /Open \$\{selectedDay\.startName\} in Google Maps/);
-  assert.match(app, /googleMapsUrl\(startLocation\)/);
+  assert.match(app, /Open \$\{selectedDay\.startName\} in OS Maps/);
+  assert.match(app, /osMapsUrl\(startLocation\)/);
+  assert.match(app, /osMapsUrl\(location\)/);
+  assert.doesNotMatch(app, /Google Maps/);
+  assert.doesNotMatch(app, /googleMapsUrl/);
   assert.doesNotMatch(app, /Verify start point in Google Maps/);
   assert.doesNotMatch(app, /Verify end point in Google Maps/);
   assert.match(app, /<h1>Locations<\/h1>/);

@@ -25,7 +25,7 @@ import {
   fillWalkingDayDates, localDateKey, plannedProgressKm, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
-  ascentDescent, googleMapsUrl, importGpx, nearestRoutePosition, pointsForDay,
+  ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, pointsForDay,
   routePointAt, simulatedGpsNearCheckpoint,
 } from "../lib/route";
 import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
@@ -439,8 +439,8 @@ export function CoastPathApp() {
 
             <aside className="day-actions panel">
                 <div className="endpoint-links">
-                  {startLocation && <a href={googleMapsUrl(startLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.startName} in Google Maps`}><MapPin />{selectedDay.startName}<ExternalLink /></a>}
-                  {endLocation && <a href={googleMapsUrl(endLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.endName} in Google Maps`}><MapPin />{selectedDay.endName}<ExternalLink /></a>}
+                  {startLocation && <a href={osMapsUrl(startLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.startName} in OS Maps`}><MapPin />{selectedDay.startName}<ExternalLink /></a>}
+                  {endLocation && <a href={osMapsUrl(endLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.endName} in OS Maps`}><MapPin />{selectedDay.endName}<ExternalLink /></a>}
                 </div>
                 <button className="secondary-button" onClick={() => { openDayEditor("edit", selectedDay); setTab("plan"); }}><Pencil size={16} /> Edit this day</button>
             </aside>
@@ -486,7 +486,7 @@ export function CoastPathApp() {
                 {route.checkpoints.map((location) => <article className="location-row" key={location.name}>
                   <span className="location-pin"><MapPin /></span>
                   <div><strong>{location.name}</strong><small>{location.lat.toFixed(6)}, {location.lng.toFixed(6)} · {location.distanceKm.toFixed(1)} km</small></div>
-                  <a href={googleMapsUrl(location)} target="_blank" rel="noreferrer" aria-label={`Open ${location.name} in Google Maps`}><ExternalLink /></a>
+                  <a href={osMapsUrl(location)} target="_blank" rel="noreferrer" aria-label={`Open ${location.name} in OS Maps`}><ExternalLink /></a>
                   <button onClick={() => openLocationEditor(location)} aria-label={`Edit ${location.name}`}><Pencil /></button>
                   <button onClick={() => deleteLocation(location)} aria-label={`Delete ${location.name}`}><Trash2 /></button>
                 </article>)}

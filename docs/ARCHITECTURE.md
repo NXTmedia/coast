@@ -6,7 +6,7 @@ Coastline is a mobile-first, offline-first planner and progress tracker for walk
 
 On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen leads with the selected day's elevation profile immediately below the top bar. The profile title is the walk's start and end locations, with the day number and date above it. A compact selector inside the elevation card provides previous/next itinerary controls without repeating the route title or date. Highest elevation sits beside ascent and descent in the same header.
 
-The Track progress card combines daily progress, total-plan progress and—only while GPS is active—trail-match accuracy. The former repeated Today metric and inactive trail-match card are omitted. A final compact action row retains the useful start/end Google Maps links and Edit action without repeating distance or elevation statistics.
+The Track progress card combines daily progress, total-plan progress and—only while GPS is active—trail-match accuracy. The former repeated Today metric and inactive trail-match card are omitted. A final compact action row retains the useful start/end OS Maps links and Edit action without repeating distance or elevation statistics.
 
 The Plan screen owns one itinerary start date. Every walking stage consumes one calendar day and its date is derived from its current order. Stages can be reordered with pointer, touch or keyboard drag-and-drop; the app immediately renumbers them and recalculates every date. A break can be inserted after any non-final stage. It appears as a distinct rest-day row and adds one day to every later stage. The stage editor contains only start and end selectors populated from the saved Locations list, plus the previous-end shortcut and planned distance. Dates, coordinate matching and naming are deliberately absent from this editor so each concern has one source of truth.
 
@@ -18,7 +18,7 @@ On the Track screen, a phone-sized landscape viewport (landscape orientation wit
 - `app/lib/db.ts` defines IndexedDB storage and loads the bundled route without requiring a network request.
 - `app/lib/days.ts` keeps itinerary order contiguous after additions, deletions and drag-and-drop moves while retaining break positions.
 - `app/lib/planning.ts` contains planned-distance, progress, naming and automatic stage/break-date rules.
-- `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and Google Maps link generation.
+- `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and OS Maps link generation.
 - `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Mousehole-to-Falmouth GPX section.
 - `public/sw.js` caches the application shell and bundled route for offline startup.
 - `tests/` contains automated tests for the important planning, route, GPS, persistence and PWA behaviours.
@@ -64,7 +64,7 @@ Track-screen endpoint links use the user's entered coordinate when one exists; o
 
 Dexie stores the active route (including its editable saved locations), walking stages, the itinerary start date and other settings in the browser's IndexedDB database named `coastline-swcp`. Walking stages use stable IDs, a numeric order and an optional break-after marker. Order and dates are repaired on every load and after changes. When an older bundled route is detected, compatible walking stages are rematched by their endpoint coordinates. Upgrading from the Penzance-to-Falmouth bundle also rematches custom saved locations and inserts Mousehole, rather than discarding device-local planning changes. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
-The service worker fetches the application page, discovers its same-origin JavaScript and stylesheet references, and caches those assets alongside the manifest and bundled route. It writes a versioned readiness marker only after the complete shell is stored; an incomplete new version is not allowed to replace the previous working cache. On iOS, an already-controlled offline launch is recognised immediately, registration waits are bounded, and the app retries preparation when connectivity returns. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening Google Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
+The service worker fetches the application page, discovers its same-origin JavaScript and stylesheet references, and caches those assets alongside the manifest and bundled route. It writes a versioned readiness marker only after the complete shell is stored; an incomplete new version is not allowed to replace the previous working cache. On iOS, an already-controlled offline launch is recognised immediately, registration waits are bounded, and the app retries preparation when connectivity returns. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening OS Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
 
 ## Tests
 
@@ -81,7 +81,7 @@ Run `npm test` for the automated suite and `npm run build` for the production co
 - coordinate-to-route matching;
 - elevation slicing, ascent and descent;
 - GPS simulation;
-- Google Maps coordinate links;
+- OS Maps coordinate links with fixed Leisure, 2D and zoom settings;
 - presence of the main requested interface capabilities.
 
 ## Current boundaries
@@ -89,4 +89,4 @@ Run `npm test` for the automated suite and `npm run build` for the production co
 - Data is device-local; there is no account or cloud sync.
 - Supplied GPX elevation is more useful than the former illustrative profile but remains subject to the source file's elevation accuracy and sampling noise.
 - GPS tracking in an iPhone web app depends on Safari permission and iOS background-execution limits.
-- Google Maps links are external and are not available offline unless the device already has suitable offline map data.
+- OS Maps links are external and are not available offline unless the device already has suitable offline map data.

@@ -80,9 +80,15 @@ export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "
   };
 }
 
-export function googleMapsUrl(point: Pick<RoutePoint, "lat" | "lng">): string {
-  const query = encodeURIComponent(`${point.lat.toFixed(6)},${point.lng.toFixed(6)}`);
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+export function osMapsUrl(point: Pick<RoutePoint, "lat" | "lng">): string {
+  const query = new URLSearchParams({
+    lat: point.lat.toFixed(6),
+    lon: point.lng.toFixed(6),
+    zoom: "13.0000",
+    style: "Leisure",
+    type: "2d",
+  });
+  return `https://explore.osmaps.com/?${query.toString()}`;
 }
 
 export function migrateDaysToRoute(days: WalkingDay[], sourceRoute: TrailRoute, targetRoute: TrailRoute, maximumOffsetM = 5000): WalkingDay[] {

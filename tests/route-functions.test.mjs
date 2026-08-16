@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ascentDescent, googleMapsUrl, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition,
+  ascentDescent, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition, osMapsUrl,
   pointsForDay, simulatedGpsNearCheckpoint,
 } from "../app/lib/route.ts";
 
@@ -70,10 +70,17 @@ test("saved locations migrate onto an extended bundled route", () => {
   assert.ok(migrated[0].lat < 50.00001);
 });
 
-test("Google Maps links contain the exact endpoint coordinates", () => {
-  const link = new URL(googleMapsUrl({ lat: 50.1234564, lng: -4.6543214 }));
-  assert.equal(link.origin, "https://www.google.com");
-  assert.equal(link.pathname, "/maps/search/");
-  assert.equal(link.searchParams.get("api"), "1");
-  assert.equal(link.searchParams.get("query"), "50.123456,-4.654321");
+test("OS Maps links contain exact coordinates and the fixed Leisure map settings", () => {
+  const link = new URL(osMapsUrl({ lat: 50.1234564, lng: -4.6543214 }));
+  assert.equal(link.origin, "https://explore.osmaps.com");
+  assert.equal(link.pathname, "/");
+  assert.equal(link.searchParams.get("lat"), "50.123456");
+  assert.equal(link.searchParams.get("lon"), "-4.654321");
+  assert.equal(link.searchParams.get("zoom"), "13.0000");
+  assert.equal(link.searchParams.get("style"), "Leisure");
+  assert.equal(link.searchParams.get("type"), "2d");
+  assert.equal(
+    osMapsUrl({ lat: 50.1186, lng: -5.5377 }),
+    "https://explore.osmaps.com/?lat=50.118600&lon=-5.537700&zoom=13.0000&style=Leisure&type=2d",
+  );
 });
