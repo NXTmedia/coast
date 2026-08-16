@@ -102,6 +102,12 @@ export function CoastPathApp() {
 
   useEffect(() => () => { if (watchId !== null) navigator.geolocation.clearWatch(watchId); }, [watchId]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
   const selectedDay = days.find((day) => day.id === selectedId) ?? days[0];
   const selectedIndex = selectedDay ? days.findIndex((day) => day.id === selectedDay.id) : -1;
   const simulationLocationLabel = route?.checkpoints.some((point) => point.name === "Lizard Point") ? "after Lizard Point" : "near the route start";

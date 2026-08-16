@@ -22,6 +22,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - One itinerary start date with automatically calculated stage dates
 - Touch-friendly drag-and-drop stage reordering with automatic renumbering and rescheduling
 - Optional break days between stages that shift every later date
+- Save and change confirmations that dismiss automatically after four seconds
 - Start/end verification links to the nearest matched path coordinates while editing
 - Device-local persistence in IndexedDB (Dexie)
 - GPX import, including elevation values where the GPX contains them

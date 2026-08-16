@@ -51,6 +51,8 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /Break day/);
   assert.match(app, /toggleBreakAfter/);
   assert.doesNotMatch(app, /editor\.day\.date/);
+  assert.match(app, /window\.setTimeout\(\(\) => setNotice\(""\), 4000\)/);
+  assert.match(app, /window\.clearTimeout\(timeout\)/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Start location name/);
   assert.match(app, /End location name/);
