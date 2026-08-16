@@ -54,6 +54,8 @@ Browser location only works in a secure context. `localhost` is treated as secur
 
 The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Wait until the header says **Offline ready** before closing the first session.
 
+The automated offline regression suite runs the service worker inside a simulated browser cache. It verifies complete first-time preparation, an iPhone Home Screen-style relaunch with the network disabled, cached navigation and scripts, recovery when connectivity returns, and rejection of incomplete updates before they can replace a working cache. It runs as part of `npm test`.
+
 ## Trail data
 
 The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Mousehole-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 4,685 points over approximately 105.5 km with the supplied elevation values. Mousehole to Penzance accounts for approximately 5.5 km of this route.

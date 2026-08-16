@@ -71,6 +71,9 @@ The service worker fetches the application page, discovers its same-origin JavaS
 Run `npm test` for the automated suite and `npm run build` for the production compilation check. Tests cover:
 
 - offline assets and route bundling;
+- complete service-worker preparation and transitive asset caching;
+- offline relaunch with cached navigation and application scripts;
+- failed-update protection and recovery when connectivity returns;
 - day renumbering;
 - planned distance and progress across gaps;
 - custom location names and previous-day carry-over;
