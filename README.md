@@ -23,7 +23,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - One itinerary start date with automatically calculated stage dates
 - Touch-friendly drag-and-drop stage reordering with automatic renumbering and rescheduling
 - Optional break days between stages that shift every later date
-- Save and change confirmations that dismiss automatically after four seconds
+- Save and change notices that dismiss automatically after four seconds
 - Device-local persistence in IndexedDB (Dexie)
 - Confirmed GPX import, including elevation values, with impact counts and automatic rematching of saved locations and stages
 - Installable PWA and service worker
@@ -50,9 +50,11 @@ npm test
 
 Browser location only works in a secure context. `localhost` is treated as secure for development; a hosted copy must use HTTPS. On iPhone, open the site in Safari, allow location access, then use **Share → Add to Home Screen**.
 
+See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for installation, planning, GPS, offline and GPX-import instructions.
+
 ## Offline behaviour
 
-The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Wait until the header says **Offline ready** before closing the first session.
+The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Imported GPX routes are also retained in IndexedDB on that device. Wait until the header says **Offline ready** before closing the first session or testing an offline relaunch.
 
 The automated offline regression suite runs the service worker inside a simulated browser cache. It verifies complete first-time preparation, an iPhone Home Screen-style relaunch with the network disabled, cached navigation and scripts, recovery when connectivity returns, and rejection of incomplete updates before they can replace a working cache. It runs as part of `npm test`.
 
@@ -68,6 +70,12 @@ The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the exp
 npm run route:segment -- path/to/full-route.gpx public/data/swcp-route.json
 ```
 
+Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled Mousehole–Falmouth route** currently replaces the route and resets the plan to its default stage.
+
 Cloud sync is intentionally not included. IndexedDB remains the source of truth for this version, leaving accounts and shared sync as a later extension.
+
+## Hosting
+
+The current build uses Vinext with the Cloudflare Vite runtime and is published through Sites. The current Sites workspace allows owner/custom or workspace-wide access, but not anonymous public access, so its hosted URL requires sign-in. A public Netlify deployment will require adapting the build to a Netlify-supported output before connecting the repository.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the feature behaviour, data flow, offline design, storage model and test coverage.

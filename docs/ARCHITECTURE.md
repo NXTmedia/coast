@@ -8,7 +8,7 @@ On startup, the app selects the walking day dated today. If no day matches today
 
 The Track progress card combines daily progress, total-plan progress and—only while GPS is active—trail-match accuracy. The former repeated Today metric and inactive trail-match card are omitted. A final compact action row retains the useful start/end OS Maps links and Edit action without repeating distance or elevation statistics.
 
-The Locations screen also provides a deliberately separate real-GPS check. Enabling `Track GPS` reveals the raw latitude, longitude and browser-reported accuracy received after the user taps the top-bar location button. Enabling this check disables simulation so simulated coordinates cannot be mistaken for a real device reading; permission failures are shown beside the check.
+The Locations screen also provides a deliberately separate real-GPS check. Enabling `Track GPS` reveals the raw latitude, longitude and browser-reported accuracy received after the user taps the top-bar location button. Enabling this check disables simulation so simulated coordinates cannot be mistaken for a real device reading; the panel shows acquisition and permission-error states beside the check. Switching the top-bar button off clears the active reading.
 
 The Plan screen owns one itinerary start date. Every walking stage consumes one calendar day and its date is derived from its current order. Stages can be reordered with pointer, touch or keyboard drag-and-drop; the app immediately renumbers them and recalculates every date. A break can be inserted after any non-final stage. It appears as a distinct rest-day row and adds one day to every later stage. The stage editor contains only start and end selectors populated from the saved Locations list, plus the previous-end shortcut and planned distance. Dates, coordinate matching and naming are deliberately absent from this editor so each concern has one source of truth.
 
@@ -43,7 +43,7 @@ The seven default planning locations were geocoded with OpenStreetMap/Nominatim 
 | Helford | 50.093298 | -5.135753 | 89.1 km |
 | Falmouth | 50.155225 | -5.068876 | 105.5 km |
 
-The bottom navigation contains Track, Plan and Locations. Plan is limited to walking-day scheduling. Locations edits the active route's checkpoint list and also contains GPS simulation plus an expandable advanced section for GPX import, bundled-route restoration and route facts. New or edited place coordinates are projected to the nearest GPX point before being saved. At least two locations are retained so a walking day can always have a start and end.
+The bottom navigation contains Track, Plan and Locations. Plan is limited to walking-day scheduling. Locations edits the active route's checkpoint list and also contains GPS simulation, the separate real-GPS coordinate check, and an expandable advanced section for GPX import, bundled-route restoration and route facts. New or edited place coordinates are projected to the nearest point on the active GPX route before being saved. At least two locations are retained so a walking day can always have a start and end.
 
 ## Location pipeline
 
@@ -58,15 +58,15 @@ Real location readings come from `navigator.geolocation.watchPosition()` with hi
 
 The live chart marker appears only when the matched position falls within the selected day's start and end boundaries. Enabling simulation automatically selects a planned day containing the simulated position when one exists.
 
-## Endpoint links
+## Endpoint and location links
 
-Track-screen endpoint links use the user's entered coordinate when one exists; otherwise they interpolate the point at the stored route distance. Edit-screen verification links deliberately use the nearest matched point on the route, allowing the user to verify the actual boundary used for distance and elevation calculations.
+Track-screen endpoint links use the selected saved locations' matched route coordinates. The Locations list links use the same stored matched coordinates. Every link opens OS Maps with `zoom=13.0000`, `style=Leisure` and `type=2d`. The simplified stage editor contains no coordinate fields or external-map links; coordinates and names are managed only on the Locations screen.
 
 ## Persistence and offline operation
 
 Dexie stores the active route (including its editable saved locations), walking stages, the itinerary start date and other settings in the browser's IndexedDB database named `coastline-swcp`. Walking stages use stable IDs, a numeric order and an optional break-after marker. Order and dates are repaired on every load and after changes. When an older bundled route is detected, compatible walking stages are rematched by their endpoint coordinates. Upgrading from the Penzance-to-Falmouth bundle also rematches custom saved locations and inserts Mousehole, rather than discarding device-local planning changes. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
-Before an imported GPX replaces the active route, the app calculates how many saved locations and planned stages can be rematched within five kilometres and presents those counts for confirmation. Cancelling performs no writes. On confirmation, the new route and all successfully rematched stages are committed in one IndexedDB transaction; the itinerary start-date setting is retained. New GPX endpoints are added only when no preserved location already represents them.
+Before an imported GPX replaces the active route, the app parses its line geometry and elevation, calculates cumulative distance, then determines how many saved locations and planned stages can be rematched within five kilometres. Those counts and any removals are presented for confirmation. Cancelling performs no writes. On confirmation, the new route and all successfully rematched stages are committed in one IndexedDB transaction; the itinerary start-date setting is retained. New GPX endpoints are added only when no preserved location already represents them. If no existing stage survives, normal loading creates one stage between the first and last available locations. Restoring the bundled route uses the older reset flow: it replaces the route, clears stages and then creates the default Mousehole-to-Falmouth stage.
 
 The service worker fetches the application page, discovers its same-origin JavaScript and stylesheet references, and caches those assets alongside the manifest and bundled route. It writes a versioned readiness marker only after the complete shell is stored; an incomplete new version is not allowed to replace the previous working cache. On iOS, an already-controlled offline launch is recognised immediately, registration waits are bounded, and the app retries preparation when connectivity returns. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening OS Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
 
@@ -85,12 +85,16 @@ Run `npm test` for the automated suite and `npm run build` for the production co
 - coordinate-to-route matching;
 - elevation slicing, ascent and descent;
 - GPS simulation;
+- live GPS coordinate display and acquisition guidance;
+- confirmed GPX replacement and plan rematching;
 - OS Maps coordinate links with fixed Leisure, 2D and zoom settings;
 - presence of the main requested interface capabilities.
 
 ## Current boundaries
 
 - Data is device-local; there is no account or cloud sync.
+- Clearing Safari website data, changing browser profiles or using another device does not carry the saved plan across; there is currently no plan export or backup.
 - Supplied GPX elevation is more useful than the former illustrative profile but remains subject to the source file's elevation accuracy and sampling noise.
 - GPS tracking in an iPhone web app depends on Safari permission and iOS background-execution limits.
 - OS Maps links are external and are not available offline unless the device already has suitable offline map data.
+- The current Sites deployment is owner-only because anonymous public access is unavailable in the active workspace. The Vinext/Cloudflare build needs a hosting-target adaptation before deployment to Netlify.

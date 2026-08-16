@@ -1,4 +1,4 @@
-const VERSION = "coastline-v20";
+const VERSION = "coastline-v21";
 const SHELL_CACHE = `${VERSION}-shell`;
 const SHELL = ["/", "/manifest.webmanifest", "/data/swcp-route.json"];
 const READY_MARKER = "/__coastline_offline_ready__";
