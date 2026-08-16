@@ -21,8 +21,8 @@ import {
 import { db, loadInitialData, replaceRoute, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
 import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
-  breakDateAfter, copyPreviousDayEnd, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
-  fillWalkingDayDates, localDateKey, plannedProgressKm, renameDayLocation, totalPlannedDistanceKm,
+  breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
+  fillWalkingDayDates, localDateKey, plannedProgressKm, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
   ascentDescent, googleMapsUrl, importGpx, nearestRoutePosition, pointsForDay,
@@ -32,7 +32,6 @@ import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
 
 type Tab = "track" | "plan" | "locations";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
-type CoordinateDrafts = { startLat: string; startLng: string; endLat: string; endLng: string };
 type OfflineState = "preparing" | "ready" | "limited";
 type LocationEditorState = { mode: "new" | "edit"; originalName?: string; name: string; lat: string; lng: string } | null;
 
@@ -55,8 +54,6 @@ export function CoastPathApp() {
   const [online, setOnline] = useState(true);
   const [offlineState, setOfflineState] = useState<OfflineState>("preparing");
   const [editor, setEditor] = useState<EditorState>(null);
-  const [coordinateDrafts, setCoordinateDrafts] = useState<CoordinateDrafts>({ startLat: "", startLng: "", endLat: "", endLng: "" });
-  const [coordinateMessages, setCoordinateMessages] = useState({ start: "", end: "" });
   const [locationEditor, setLocationEditor] = useState<LocationEditorState>(null);
   const [notice, setNotice] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
@@ -207,49 +204,20 @@ export function CoastPathApp() {
 
   const openDayEditor = (mode: "new" | "edit", day: WalkingDay) => {
     if (!route) return;
-    const start = day.startCoordinate ?? routePointAt(route, day.startDistanceKm);
-    const end = day.endCoordinate ?? routePointAt(route, day.endDistanceKm);
-    setCoordinateDrafts({
-      startLat: start?.lat.toFixed(6) ?? "", startLng: start?.lng.toFixed(6) ?? "",
-      endLat: end?.lat.toFixed(6) ?? "", endLng: end?.lng.toFixed(6) ?? "",
-    });
-    setCoordinateMessages({
-      start: day.startCoordinate ? `Matched ${Math.round(day.startCoordinate.offRouteM)} m from the path` : "",
-      end: day.endCoordinate ? `Matched ${Math.round(day.endCoordinate.offRouteM)} m from the path` : "",
-    });
-    setEditor({ mode, day });
-  };
-
-  const matchCoordinates = (field: "start" | "end") => {
-    if (!route || !editor) return;
-    const latText = field === "start" ? coordinateDrafts.startLat : coordinateDrafts.endLat;
-    const lngText = field === "start" ? coordinateDrafts.startLng : coordinateDrafts.endLng;
-    const lat = Number(latText);
-    const lng = Number(lngText);
-    if (!latText.trim() || !lngText.trim() || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      setCoordinateMessages((messages) => ({ ...messages, [field]: "Enter a valid latitude and longitude." }));
-      return;
-    }
-    const match = nearestRoutePosition(route, lng, lat);
-    if (!match) {
-      setCoordinateMessages((messages) => ({ ...messages, [field]: "No matching point was found on this route." }));
-      return;
-    }
-    const nearby = route.checkpoints.reduce((best, point) =>
-      Math.abs(point.distanceKm - match.distanceKm) < Math.abs(best.distanceKm - match.distanceKm) ? point : best,
+    const closestCheckpoint = (distanceKm: number) => route.checkpoints.reduce((best, point) =>
+      Math.abs(point.distanceKm - distanceKm) < Math.abs(best.distanceKm - distanceKm) ? point : best,
     );
-    const label = `${nearby.name} area · ${match.distanceKm.toFixed(1)} km`;
-    const coordinate = { lat, lng, offRouteM: match.offRouteM };
-    setEditor({
-      ...editor,
-      day: field === "start"
-        ? { ...editor.day, startName: label, startDistanceKm: match.distanceKm, startCoordinate: coordinate }
-        : { ...editor.day, endName: label, endDistanceKm: match.distanceKm, endCoordinate: coordinate },
-    });
-    setCoordinateMessages((messages) => ({
-      ...messages,
-      [field]: `Matched to the SWCP at ${match.distanceKm.toFixed(1)} km · ${Math.round(match.offRouteM)} m from the path`,
-    }));
+    const start = route.checkpoints.find((point) => point.name === day.startName) ?? closestCheckpoint(day.startDistanceKm);
+    const end = route.checkpoints.find((point) => point.name === day.endName) ?? closestCheckpoint(day.endDistanceKm);
+    setEditor({ mode, day: {
+      ...day,
+      startName: start.name,
+      startDistanceKm: start.distanceKm,
+      startCoordinate: undefined,
+      endName: end.name,
+      endDistanceKm: end.distanceKm,
+      endCoordinate: undefined,
+    } });
   };
 
   const saveDay = async () => {
@@ -307,10 +275,14 @@ export function CoastPathApp() {
     if (!editor || !route || editor.day.order <= 1) return;
     const previous = days.find((day) => day.order === editor.day.order - 1) ?? days.at(-1);
     if (!previous) return;
-    const coordinate = previous.endCoordinate ?? routePointAt(route, previous.endDistanceKm);
-    setEditor({ ...editor, day: copyPreviousDayEnd(editor.day, previous) });
-    if (coordinate) setCoordinateDrafts((values) => ({ ...values, startLat: coordinate.lat.toFixed(6), startLng: coordinate.lng.toFixed(6) }));
-    setCoordinateMessages((messages) => ({ ...messages, start: previous.endCoordinate ? `Matched ${Math.round(previous.endCoordinate.offRouteM)} m from the path` : "" }));
+    const point = route.checkpoints.find((candidate) => candidate.name === previous.endName)
+      ?? route.checkpoints.reduce((best, candidate) => Math.abs(candidate.distanceKm - previous.endDistanceKm) < Math.abs(best.distanceKm - previous.endDistanceKm) ? candidate : best);
+    setEditor({ ...editor, day: {
+      ...editor.day,
+      startName: point.name,
+      startDistanceKm: point.distanceKm,
+      startCoordinate: undefined,
+    } });
   };
 
   const chooseCheckpoint = (field: "start" | "end", name: string) => {
@@ -323,10 +295,6 @@ export function CoastPathApp() {
         ? { ...editor.day, startName: point.name, startDistanceKm: point.distanceKm, startCoordinate: undefined }
         : { ...editor.day, endName: point.name, endDistanceKm: point.distanceKm, endCoordinate: undefined },
     });
-    setCoordinateDrafts((values) => field === "start"
-      ? { ...values, startLat: point.lat.toFixed(6), startLng: point.lng.toFixed(6) }
-      : { ...values, endLat: point.lat.toFixed(6), endLng: point.lng.toFixed(6) });
-    setCoordinateMessages((messages) => ({ ...messages, [field]: "" }));
   };
 
   const openLocationEditor = (location?: Checkpoint) => {
@@ -547,15 +515,9 @@ export function CoastPathApp() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditor(null); }}>
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Day {editor.day.order}</p><h2 id="editor-title">{editor.mode === "new" ? "Plan a walking day" : "Edit walking day"}</h2></div><button className="close-button" onClick={() => setEditor(null)} aria-label="Close editor"><X /></button></div>
-            <label>Start point<select value={editor.day.startName} onChange={(event) => chooseCheckpoint("start", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.startName) && <option value={editor.day.startName}>{editor.day.startName}</option>}{route.checkpoints.map((point) => <option key={`s-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
-            <CoordinateMatcher field="start" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.start} onMatch={() => matchCoordinates("start")} />
-            <label>Start location name<input type="text" placeholder="For example: The harbour steps" value={editor.day.startName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "start", event.target.value) })} /></label>
-            <VerifyPointLink route={route} distanceKm={editor.day.startDistanceKm} label="Verify start point in Google Maps" />
+            <label>Start point<select value={editor.day.startName} onChange={(event) => chooseCheckpoint("start", event.target.value)}>{route.checkpoints.map((point) => <option key={`s-${point.name}`} value={point.name}>{point.name}</option>)}</select></label>
             {editor.day.order > 1 && <button className="copy-button" onClick={usePreviousEnd}><ArrowDown size={16} /> Start where the previous day ended</button>}
-            <label>End point<select value={editor.day.endName} onChange={(event) => chooseCheckpoint("end", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.endName) && <option value={editor.day.endName}>{editor.day.endName}</option>}{route.checkpoints.map((point) => <option key={`e-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
-            <CoordinateMatcher field="end" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.end} onMatch={() => matchCoordinates("end")} />
-            <label>End location name<input type="text" placeholder="For example: Café by the beach" value={editor.day.endName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "end", event.target.value) })} /></label>
-            <VerifyPointLink route={route} distanceKm={editor.day.endDistanceKm} label="Verify end point in Google Maps" />
+            <label>End point<select value={editor.day.endName} onChange={(event) => chooseCheckpoint("end", event.target.value)}>{route.checkpoints.map((point) => <option key={`e-${point.name}`} value={point.name}>{point.name}</option>)}</select></label>
             <div className="editor-preview"><span>Planned distance</span><strong>{Math.max(0, editor.day.endDistanceKm - editor.day.startDistanceKm).toFixed(1)} km</strong></div>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setEditor(null)}>Cancel</button><button className="primary-button" onClick={saveDay}><Check size={17} /> Save day offline</button></div>
           </section>
@@ -620,37 +582,10 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return <button className={active ? "active" : ""} onClick={onClick}>{icon}<span>{label}</span></button>;
 }
 
-function VerifyPointLink({ route, distanceKm, label }: { route: TrailRoute; distanceKm: number; label: string }) {
-  const point = routePointAt(route, distanceKm);
-  if (!point) return null;
-  return <a className="verify-link" href={googleMapsUrl(point)} target="_blank" rel="noreferrer"><MapPin size={15} /><span>{label}</span><small>{point.lat.toFixed(5)}, {point.lng.toFixed(5)}</small><ExternalLink size={13} /></a>;
-}
-
 function ElevationTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { dayKm: number; elevationM: number } }> }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return <div className="elevation-tooltip"><strong>{point.elevationM} m</strong><span>{point.dayKm.toFixed(1)} km into day</span></div>;
-}
-
-function CoordinateMatcher({ field, drafts, setDrafts, message, onMatch }: {
-  field: "start" | "end";
-  drafts: CoordinateDrafts;
-  setDrafts: React.Dispatch<React.SetStateAction<CoordinateDrafts>>;
-  message: string;
-  onMatch: () => void;
-}) {
-  const title = field === "start" ? "Start" : "End";
-  const latKey = `${field}Lat` as keyof CoordinateDrafts;
-  const lngKey = `${field}Lng` as keyof CoordinateDrafts;
-  return <div className="coordinate-method">
-    <div className="coordinate-method-heading"><span><MapPin size={15} /> Or use coordinates</span><small>Matched locally to the nearest path point</small></div>
-    <div className="coordinate-fields">
-      <label>{title} latitude<input aria-label={`${title} latitude`} inputMode="decimal" type="number" min="-90" max="90" step="any" value={drafts[latKey]} onChange={(event) => setDrafts((values) => ({ ...values, [latKey]: event.target.value }))} /></label>
-      <label>{title} longitude<input aria-label={`${title} longitude`} inputMode="decimal" type="number" min="-180" max="180" step="any" value={drafts[lngKey]} onChange={(event) => setDrafts((values) => ({ ...values, [lngKey]: event.target.value }))} /></label>
-      <button className="coordinate-match-button" onClick={onMatch}><MapPin size={16} /> Match to trail</button>
-    </div>
-    {message && <p className={message.startsWith("Matched") ? "coordinate-result success" : "coordinate-result"}>{message}</p>}
-  </div>;
 }
 
 async function prepareOfflineApp(): Promise<boolean> {

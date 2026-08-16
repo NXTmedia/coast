@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  copyPreviousDayEnd,
   breakDateAfter,
   dateKeyAfter,
   dayIdContainingDistance,
@@ -10,7 +9,6 @@ import {
   fillWalkingDayDates,
   localDateKey,
   plannedProgressKm,
-  renameDayLocation,
   totalPlannedDistanceKm,
 } from "../app/lib/planning.ts";
 
@@ -44,28 +42,6 @@ test("whole-plan progress only counts distance inside planned sections", () => {
   assert.equal(plannedProgressKm(days, 25), 10);
   assert.equal(plannedProgressKm(days, 35), 15);
   assert.equal(plannedProgressKm(days, 50), 20);
-});
-
-test("custom location names are stored on the correct boundary", () => {
-  const original = day();
-  const namedStart = renameDayLocation(original, "start", "The harbour steps");
-  const namedEnd = renameDayLocation(namedStart, "end", "Café by the beach");
-  assert.equal(namedEnd.startName, "The harbour steps");
-  assert.equal(namedEnd.endName, "Café by the beach");
-  assert.equal(original.startName, "Start");
-});
-
-test("using the previous end copies its custom name, distance and coordinates", () => {
-  const previous = day({
-    endName: "Our overnight cottage",
-    endDistanceKm: 27.4,
-    endCoordinate: { lat: 50.1, lng: -4.2, offRouteM: 7 },
-  });
-  const next = day({ id: "day-2", order: 2, startDistanceKm: 0 });
-  const copied = copyPreviousDayEnd(next, previous);
-  assert.equal(copied.startName, "Our overnight cottage");
-  assert.equal(copied.startDistanceKm, 27.4);
-  assert.deepEqual(copied.startCoordinate, previous.endCoordinate);
 });
 
 test("today's dated walking day is selected when the app opens", () => {

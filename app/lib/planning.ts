@@ -15,19 +15,6 @@ export function plannedProgressKm(days: WalkingDay[], trailDistanceKm: number): 
   }, 0);
 }
 
-export function renameDayLocation(day: WalkingDay, field: "start" | "end", name: string): WalkingDay {
-  return field === "start" ? { ...day, startName: name } : { ...day, endName: name };
-}
-
-export function copyPreviousDayEnd(day: WalkingDay, previous: WalkingDay): WalkingDay {
-  return {
-    ...day,
-    startName: previous.endName,
-    startDistanceKm: previous.endDistanceKm,
-    startCoordinate: previous.endCoordinate,
-  };
-}
-
 export function localDateKey(date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");

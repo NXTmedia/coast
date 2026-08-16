@@ -6,8 +6,8 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 
 - A Mousehole-to-Falmouth starter day, plus create/edit/delete planning tools
 - One-tap “start where the previous day ended” planning
-- Start and end entry by named checkpoint or latitude/longitude with nearest-path matching
-- Custom names for every start and end location, used throughout the app
+- Walking-stage start and end selection from the saved Locations list
+- Custom named locations with coordinate-to-path matching on the Locations screen
 - Editable saved-location list with coordinate-to-GPX matching
 - Dedicated Locations screen for place editing, Google Maps verification, GPS simulation and advanced GPX tools
 - Elevation profile for each selected day
@@ -23,7 +23,6 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Touch-friendly drag-and-drop stage reordering with automatic renumbering and rescheduling
 - Optional break days between stages that shift every later date
 - Save and change confirmations that dismiss automatically after four seconds
-- Start/end verification links to the nearest matched path coordinates while editing
 - Device-local persistence in IndexedDB (Dexie)
 - GPX import, including elevation values where the GPX contains them
 - Installable PWA and service worker
