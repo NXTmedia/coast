@@ -27,6 +27,7 @@ export type WalkingDay = {
   id: string;
   order: number;
   date: string;
+  breakAfter?: boolean;
   startName: string;
   endName: string;
   startDistanceKm: number;

@@ -4,6 +4,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { Checkpoint, TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../../public/data/swcp-route.json";
 import { normalizeDayOrders, removeLegacyStarterDays } from "./days";
+import { fillWalkingDayDates } from "./planning";
 import { migrateCheckpointsToRoute, migrateDaysToRoute } from "./route";
 
 type StoredRoute = { key: string; data: TrailRoute };
@@ -54,7 +55,7 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 1800): Promise<T> {
   ]);
 }
 
-export async function loadInitialData(): Promise<{ route: TrailRoute; days: WalkingDay[]; storageReady: boolean }> {
+export async function loadInitialData(): Promise<{ route: TrailRoute; days: WalkingDay[]; planStartDate: string; storageReady: boolean }> {
   let route = bundledRoute;
   let previousBundledRoute: TrailRoute | null = null;
   let storageReady = true;
@@ -89,6 +90,14 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   if (!days.length) days = defaultDays(route);
   days = normalizeDayOrders(days);
 
+  let planStartDate = days[0]?.date ?? "";
+  try {
+    planStartDate = (await withTimeout(db.settings.get("plan-start-date")))?.value ?? planStartDate;
+  } catch {
+    storageReady = false;
+  }
+  days = fillWalkingDayDates(days, planStartDate);
+
   // The route is compiled into the app, so startup never depends on a network
   // request. Refresh IndexedDB in the background without blocking the UI.
   if (route.id === bundledRoute.id) db.routes.put({ key: "active", data: route }).catch(() => undefined);
@@ -97,7 +106,12 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
     if (days.length) await db.days.bulkPut(days);
   }).catch(() => undefined);
 
-  return { route, days, storageReady };
+  return { route, days, planStartDate, storageReady };
+}
+
+export async function savePlanStartDate(value: string) {
+  if (value) await db.settings.put({ key: "plan-start-date", value });
+  else await db.settings.delete("plan-start-date");
 }
 
 export async function replaceRoute(route: TrailRoute) {

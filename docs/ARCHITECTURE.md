@@ -2,13 +2,13 @@
 
 ## Product behaviour
 
-Coastline is a mobile-first, offline-first planner and progress tracker for walks on the South West Coast Path. A user creates ordered walking days, selects start and end positions along a master route, optionally assigns dates and custom location names, and can then view distance and elevation for each day.
+Coastline is a mobile-first, offline-first planner and progress tracker for walks on the South West Coast Path. A user creates ordered walking stages, selects start and end positions along a master route, assigns one itinerary start date and custom location names, and can then view distance and elevation for each stage.
 
 On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen leads with the selected day's elevation profile immediately below the top bar. The profile title is the walk's start and end locations, with the day number and date above it. A compact selector inside the elevation card provides previous/next itinerary controls without repeating the route title or date. Highest elevation sits beside ascent and descent in the same header.
 
 The Track progress card combines daily progress, total-plan progress and—only while GPS is active—trail-match accuracy. The former repeated Today metric and inactive trail-match card are omitted. A final compact action row retains the useful start/end Google Maps links and Edit action without repeating distance or elevation statistics.
 
-When Day 1 is assigned or moved to a new start date, the app fills every walking day with consecutive calendar dates. Dates on Days 2 onward can then be edited independently without rescheduling the rest of the itinerary. A newly appended day inherits the calendar day after the preceding dated day.
+The Plan screen owns one itinerary start date. Every walking stage consumes one calendar day and its date is derived from its current order. Stages can be reordered with pointer, touch or keyboard drag-and-drop; the app immediately renumbers them and recalculates every date. A break can be inserted after any non-final stage. It appears as a distinct rest-day row and adds one day to every later stage. Stage dates are deliberately absent from the stage editor so there is only one scheduling source of truth.
 
 On the Track screen, a phone-sized landscape viewport (landscape orientation with no more than 500 CSS pixels of height) activates profile-only mode. The top bar, day picker, progress information, summary and bottom navigation are hidden while the elevation card fills the available dynamic viewport with iPhone safe-area padding. Rotating back to portrait restores the normal layout without changing application state. Larger landscape devices retain the standard interface.
 
@@ -16,8 +16,8 @@ On the Track screen, a phone-sized landscape viewport (landscape orientation wit
 
 - `app/components/CoastPathApp.tsx` owns the main React interface and coordinates loading, editing, GPS, simulation and navigation.
 - `app/lib/db.ts` defines IndexedDB storage and loads the bundled route without requiring a network request.
-- `app/lib/days.ts` keeps itinerary order contiguous after additions and deletions.
-- `app/lib/planning.ts` contains planned-distance, progress, naming and date-selection rules.
+- `app/lib/days.ts` keeps itinerary order contiguous after additions, deletions and drag-and-drop moves while retaining break positions.
+- `app/lib/planning.ts` contains planned-distance, progress, naming and automatic stage/break-date rules.
 - `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and Google Maps link generation.
 - `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Mousehole-to-Falmouth GPX section.
 - `public/sw.js` caches the application shell and bundled route for offline startup.
@@ -62,7 +62,7 @@ Track-screen endpoint links use the user's entered coordinate when one exists; o
 
 ## Persistence and offline operation
 
-Dexie stores the active route (including its editable saved locations), walking days and settings in the browser's IndexedDB database named `coastline-swcp`. Walking days use stable IDs and a numeric order that is repaired on every load and after changes. When an older bundled route is detected, compatible walking days are rematched by their endpoint coordinates. Upgrading from the Penzance-to-Falmouth bundle also rematches custom saved locations and inserts Mousehole, rather than discarding device-local planning changes. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
+Dexie stores the active route (including its editable saved locations), walking stages, the itinerary start date and other settings in the browser's IndexedDB database named `coastline-swcp`. Walking stages use stable IDs, a numeric order and an optional break-after marker. Order and dates are repaired on every load and after changes. When an older bundled route is detected, compatible walking stages are rematched by their endpoint coordinates. Upgrading from the Penzance-to-Falmouth bundle also rematches custom saved locations and inserts Mousehole, rather than discarding device-local planning changes. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
 The service worker caches the application shell, manifest and bundled route. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening Google Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
 

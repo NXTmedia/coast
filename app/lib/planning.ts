@@ -44,7 +44,16 @@ export function dateKeyAfter(dateKey: string, days: number): string {
 }
 
 export function fillWalkingDayDates(days: WalkingDay[], startDate: string): WalkingDay[] {
-  return days.map((day) => ({ ...day, date: dateKeyAfter(startDate, day.order - 1) }));
+  let dateOffset = 0;
+  return days.map((day) => {
+    const scheduled = { ...day, date: dateKeyAfter(startDate, dateOffset) };
+    dateOffset += day.breakAfter ? 2 : 1;
+    return scheduled;
+  });
+}
+
+export function breakDateAfter(day: WalkingDay): string {
+  return day.breakAfter ? dateKeyAfter(day.date, 1) : "";
 }
 
 export function dayIdForDate(days: WalkingDay[], dateKey: string): string {

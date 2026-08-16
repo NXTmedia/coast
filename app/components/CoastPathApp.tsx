@@ -2,19 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDown, ArrowRight, ArrowUp, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert,
+  closestCenter, DndContext, KeyboardSensor, PointerSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  ArrowDown, ArrowRight, ArrowUp, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, Coffee,
   CloudOff, Download, ExternalLink, FileUp, Footprints, LocateFixed, MapPin, Mountain,
-  Navigation, Pencil, Plus, Route as RouteIcon, Satellite, Trash2, X,
+  GripVertical, Navigation, Pencil, Plus, Route as RouteIcon, Satellite, Trash2, X,
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { db, loadInitialData, replaceRoute, saveRouteCheckpoints } from "../lib/db";
-import { normalizeDayOrders } from "../lib/days";
+import { db, loadInitialData, replaceRoute, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
+import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
-  copyPreviousDayEnd, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
-  dateKeyAfter, fillWalkingDayDates, localDateKey, plannedProgressKm, renameDayLocation, totalPlannedDistanceKm,
+  breakDateAfter, copyPreviousDayEnd, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
+  fillWalkingDayDates, localDateKey, plannedProgressKm, renameDayLocation, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
   ascentDescent, googleMapsUrl, importGpx, nearestRoutePosition, pointsForDay,
@@ -36,6 +44,7 @@ const formatDate = (value: string) => value
 export function CoastPathApp() {
   const [route, setRoute] = useState<TrailRoute | null>(null);
   const [days, setDays] = useState<WalkingDay[]>([]);
+  const [planStartDate, setPlanStartDate] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [tab, setTab] = useState<Tab>("track");
   const [loadingError, setLoadingError] = useState("");
@@ -51,11 +60,16 @@ export function CoastPathApp() {
   const [locationEditor, setLocationEditor] = useState<LocationEditorState>(null);
   const [notice, setNotice] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     loadInitialData()
-      .then(({ route: loadedRoute, days: loadedDays, storageReady }) => {
-        setRoute(loadedRoute); setDays(loadedDays); setSelectedId(dayIdForDate(loadedDays, localDateKey()));
+      .then(({ route: loadedRoute, days: loadedDays, planStartDate: loadedStartDate, storageReady }) => {
+        setRoute(loadedRoute); setDays(loadedDays); setPlanStartDate(loadedStartDate); setSelectedId(dayIdForDate(loadedDays, localDateKey()));
         if (!storageReady) setOfflineState("limited");
       })
       .catch((error) => setLoadingError(error instanceof Error ? error.message : "Unable to load the trail."));
@@ -170,7 +184,7 @@ export function CoastPathApp() {
       : route.checkpoints[0];
     const end = route.checkpoints.find((point) => point.distanceKm > start.distanceKm + 1) ?? route.checkpoints.at(-1)!;
     openDayEditor("new", {
-      id: crypto.randomUUID(), order: days.length + 1, date: previous?.date ? dateKeyAfter(previous.date, 1) : "",
+      id: crypto.randomUUID(), order: days.length + 1, date: "",
       startName: start.name, endName: end.name,
       startDistanceKm: start.distanceKm, endDistanceKm: end.distanceKm,
     });
@@ -232,22 +246,46 @@ export function CoastPathApp() {
     if (!savedDay.startName || !savedDay.endName) {
       setNotice("Give both the start and end locations a name."); return;
     }
-    const originalDay = days.find((day) => day.id === savedDay.id);
-    const shouldFillDates = savedDay.order === 1 && Boolean(savedDay.date) && savedDay.date !== originalDay?.date;
-    let updated = normalizeDayOrders([...days.filter((day) => day.id !== savedDay.id), savedDay]);
-    if (shouldFillDates) updated = fillWalkingDayDates(updated, savedDay.date);
+    const updated = fillWalkingDayDates(normalizeDayOrders([...days.filter((day) => day.id !== savedDay.id), savedDay]), planStartDate);
     await db.days.bulkPut(updated);
     setDays(updated); setSelectedId(savedDay.id); setEditor(null);
-    setNotice(shouldFillDates ? "Start date saved and all walking-day dates filled." : "Walking day saved offline.");
+    setNotice("Walking stage saved and itinerary dates updated.");
   };
 
   const deleteDay = async (day: WalkingDay) => {
-    const updated = normalizeDayOrders(days.filter((candidate) => candidate.id !== day.id));
+    const updated = fillWalkingDayDates(normalizeDayOrders(days.filter((candidate) => candidate.id !== day.id)), planStartDate);
     await db.transaction("rw", db.days, async () => {
       await db.days.delete(day.id);
       if (updated.length) await db.days.bulkPut(updated);
     });
-    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setNotice("Walking day removed and days renumbered.");
+    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setNotice("Walking stage removed; numbering and dates updated.");
+  };
+
+  const changePlanStartDate = async (value: string) => {
+    const updated = fillWalkingDayDates(days, value);
+    await savePlanStartDate(value);
+    if (updated.length) await db.days.bulkPut(updated);
+    setPlanStartDate(value);
+    setDays(updated);
+    setNotice(value ? "Start date saved and the itinerary rescheduled." : "Start date cleared.");
+  };
+
+  const toggleBreakAfter = async (dayId: string) => {
+    const updated = fillWalkingDayDates(days.map((day, index) => ({
+      ...day,
+      breakAfter: day.id === dayId && index < days.length - 1 ? !day.breakAfter : day.breakAfter,
+    })), planStartDate);
+    if (updated.length) await db.days.bulkPut(updated);
+    setDays(updated);
+    setNotice(updated.find((day) => day.id === dayId)?.breakAfter ? "Break day added; later dates moved on by one day." : "Break day removed; later dates recalculated.");
+  };
+
+  const reorderStages = async ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const updated = fillWalkingDayDates(reorderWalkingDays(days, String(active.id), String(over.id)), planStartDate);
+    await db.days.bulkPut(updated);
+    setDays(updated);
+    setNotice("Stages reordered; numbering and dates updated.");
   };
 
   const usePreviousEnd = () => {
@@ -325,7 +363,7 @@ export function CoastPathApp() {
       const imported = importGpx(await file.text(), file.name);
       await replaceRoute(imported);
       const seeded = await loadInitialData();
-      setRoute(seeded.route); setDays(seeded.days); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
+      setRoute(seeded.route); setDays(seeded.days); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
       setNotice(`${imported.name} is stored on this device and ready offline.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "The GPX file could not be imported.");
@@ -337,7 +375,7 @@ export function CoastPathApp() {
     const bundled = await response.json() as TrailRoute;
     await replaceRoute(bundled);
     const seeded = await loadInitialData();
-    setRoute(seeded.route); setDays(seeded.days); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
+    setRoute(seeded.route); setDays(seeded.days); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
     setNotice("The bundled South West Coast Path route has been restored.");
   };
 
@@ -432,20 +470,27 @@ export function CoastPathApp() {
 
         {tab === "plan" && (
           <section className="workspace-section">
-            <div className="section-heading"><div><p className="eyebrow"><CalendarDays size={14} /> Your itinerary</p><h1>Planned walking days</h1><p>Choose named points along the route. Each day is saved on this device.</p></div><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add a day</button></div>
-            <div className="days-list">
-              {days.map((day) => {
-                const distance = dayDistanceKm(day);
-                return <article className={`day-row ${selectedId === day.id ? "selected" : ""}`} key={day.id}>
-                  <button className="day-main" onClick={() => { setSelectedId(day.id); setTab("track"); }}>
-                    <span className="day-number">{String(day.order).padStart(2, "0")}</span>
-                    <span className="day-copy"><small>{formatDate(day.date)}</small><strong>{day.startName} <ArrowRight /> {day.endName}</strong></span>
-                    <span className="day-distance"><strong>{distance.toFixed(1)}</strong><small>km</small></span><ChevronRight />
-                  </button>
-                  <div className="row-actions"><button aria-label={`Edit day ${day.order}`} onClick={() => openDayEditor("edit", day)}><Pencil size={17} /></button><button aria-label={`Delete day ${day.order}`} onClick={() => deleteDay(day)}><Trash2 size={17} /></button></div>
-                </article>;
-              })}
-            </div>
+            <div className="section-heading"><div><p className="eyebrow"><CalendarDays size={14} /> Your itinerary</p><h1>Planned walking days</h1><p>Set one start date, then drag stages into order. Dates update automatically.</p></div><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add a stage</button></div>
+            <section className="plan-schedule panel">
+              <label htmlFor="plan-start-date"><span>Walk start date</span><small>Every stage takes one day. Break days shift all later dates.</small></label>
+              <input id="plan-start-date" type="date" value={planStartDate} onChange={(event) => changePlanStartDate(event.target.value)} />
+            </section>
+            <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={reorderStages}>
+              <SortableContext items={days.map((day) => day.id)} strategy={verticalListSortingStrategy}>
+                <div className="days-list">
+                  {days.map((day, index) => <SortableDayItem
+                    key={day.id}
+                    day={day}
+                    selected={selectedId === day.id}
+                    canAddBreak={index < days.length - 1}
+                    onOpen={() => { setSelectedId(day.id); setTab("track"); }}
+                    onEdit={() => openDayEditor("edit", day)}
+                    onDelete={() => deleteDay(day)}
+                    onToggleBreak={() => toggleBreakAfter(day.id)}
+                  />)}
+                </div>
+              </SortableContext>
+            </DndContext>
             {!days.length && <div className="empty-state"><MapPin /><h2>Plan your first walking day</h2><p>Pick a start and end point on the trail.</p><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add first day</button></div>}
           </section>
         )}
@@ -487,7 +532,6 @@ export function CoastPathApp() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditor(null); }}>
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Day {editor.day.order}</p><h2 id="editor-title">{editor.mode === "new" ? "Plan a walking day" : "Edit walking day"}</h2></div><button className="close-button" onClick={() => setEditor(null)} aria-label="Close editor"><X /></button></div>
-            <label>{editor.day.order === 1 ? "Start date (fills following days)" : "Date"}<input type="date" value={editor.day.date} onChange={(event) => setEditor({ ...editor, day: { ...editor.day, date: event.target.value } })} /></label>
             <label>Start point<select value={editor.day.startName} onChange={(event) => chooseCheckpoint("start", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.startName) && <option value={editor.day.startName}>{editor.day.startName}</option>}{route.checkpoints.map((point) => <option key={`s-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
             <CoordinateMatcher field="start" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.start} onMatch={() => matchCoordinates("start")} />
             <label>Start location name<input type="text" placeholder="For example: The harbour steps" value={editor.day.startName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "start", event.target.value) })} /></label>
@@ -518,6 +562,43 @@ export function CoastPathApp() {
       {notice && <button className="toast" onClick={() => setNotice("")}><Check size={17} /><span>{notice}</span><X size={15} /></button>}
     </div>
   );
+}
+
+function SortableDayItem({ day, selected, canAddBreak, onOpen, onEdit, onDelete, onToggleBreak }: {
+  day: WalkingDay;
+  selected: boolean;
+  canAddBreak: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleBreak: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
+  const distance = dayDistanceKm(day);
+  return <div
+    ref={setNodeRef}
+    className={`itinerary-item ${isDragging ? "dragging" : ""}`}
+    style={{ transform: CSS.Transform.toString(transform), transition }}
+  >
+    <article className={`day-row ${selected ? "selected" : ""}`}>
+      <button className="drag-handle" aria-label={`Drag to reorder day ${day.order}`} {...attributes} {...listeners}><GripVertical /></button>
+      <button className="day-main" onClick={onOpen}>
+        <span className="day-number">{String(day.order).padStart(2, "0")}</span>
+        <span className="day-copy"><small>{formatDate(day.date)}</small><strong>{day.startName} <ArrowRight /> {day.endName}</strong></span>
+        <span className="day-distance"><strong>{distance.toFixed(1)}</strong><small>km</small></span><ChevronRight />
+      </button>
+      <div className="row-actions">
+        {canAddBreak && <button aria-label={`${day.breakAfter ? "Remove" : "Add"} break day after day ${day.order}`} aria-pressed={Boolean(day.breakAfter)} onClick={onToggleBreak}><Coffee size={17} /></button>}
+        <button aria-label={`Edit day ${day.order}`} onClick={onEdit}><Pencil size={17} /></button>
+        <button aria-label={`Delete day ${day.order}`} onClick={onDelete}><Trash2 size={17} /></button>
+      </div>
+    </article>
+    {day.breakAfter && <article className="break-day-row">
+      <span className="break-icon"><Coffee /></span>
+      <span><small>{formatDate(breakDateAfter(day))}</small><strong>Break day</strong></span>
+      <button onClick={onToggleBreak} aria-label={`Remove break day after day ${day.order}`}><X /></button>
+    </article>}
+  </div>;
 }
 
 function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
