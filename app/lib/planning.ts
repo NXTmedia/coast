@@ -27,3 +27,18 @@ export function copyPreviousDayEnd(day: WalkingDay, previous: WalkingDay): Walki
     startCoordinate: previous.endCoordinate,
   };
 }
+
+export function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function dayIdForDate(days: WalkingDay[], dateKey: string): string {
+  return days.find((day) => day.date === dateKey)?.id ?? days[0]?.id ?? "";
+}
+
+export function dayIdContainingDistance(days: WalkingDay[], distanceKm: number): string | undefined {
+  return days.find((day) => distanceKm >= day.startDistanceKm && distanceKm <= day.endDistanceKm)?.id;
+}

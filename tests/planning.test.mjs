@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   copyPreviousDayEnd,
+  dayIdContainingDistance,
+  dayIdForDate,
   dayDistanceKm,
+  localDateKey,
   plannedProgressKm,
   renameDayLocation,
   totalPlannedDistanceKm,
@@ -60,4 +63,24 @@ test("using the previous end copies its custom name, distance and coordinates", 
   assert.equal(copied.startName, "Our overnight cottage");
   assert.equal(copied.startDistanceKm, 27.4);
   assert.deepEqual(copied.startCoordinate, previous.endCoordinate);
+});
+
+test("today's dated walking day is selected when the app opens", () => {
+  const days = [
+    day({ id: "first", date: "2026-08-15" }),
+    day({ id: "today", date: "2026-08-16" }),
+  ];
+  assert.equal(localDateKey(new Date(2026, 7, 16, 23, 30)), "2026-08-16");
+  assert.equal(dayIdForDate(days, "2026-08-16"), "today");
+  assert.equal(dayIdForDate(days, "2026-08-20"), "first");
+  assert.equal(dayIdForDate([], "2026-08-16"), "");
+});
+
+test("a GPS position selects the planned day containing that trail distance", () => {
+  const days = [
+    day({ id: "one", startDistanceKm: 0, endDistanceKm: 20 }),
+    day({ id: "lynmouth", startDistanceKm: 43, endDistanceKm: 64 }),
+  ];
+  assert.equal(dayIdContainingDistance(days, 45), "lynmouth");
+  assert.equal(dayIdContainingDistance(days, 30), undefined);
 });

@@ -33,6 +33,11 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /watchPosition/);
   assert.match(app, /Simulate GPS/);
   assert.match(app, /simulatedGpsNearCheckpoint/);
+  assert.match(app, /ReferenceDot/);
+  assert.match(app, /You are here/);
+  assert.match(app, /Previous walking day/);
+  assert.match(app, /Next walking day/);
+  assert.match(app, /dayIdForDate\(loadedDays, localDateKey\(\)\)/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Start location name/);
   assert.match(app, /End location name/);
@@ -41,6 +46,8 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /nearestRoutePosition\(route, lng, lat\)/);
   assert.match(app, /Open \$\{selectedDay\.startName\} in Google Maps/);
   assert.match(app, /googleMapsUrl\(startLocation\)/);
+  assert.match(app, /Verify start point in Google Maps/);
+  assert.match(app, /Verify end point in Google Maps/);
   assert.match(app, /AreaChart/);
   assert.doesNotMatch(app, /CoastMap/);
   assert.match(planning, /totalPlannedDistanceKm/);

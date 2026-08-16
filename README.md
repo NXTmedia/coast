@@ -9,10 +9,13 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Start and end entry by named checkpoint, distance slider, or latitude/longitude with nearest-path matching
 - Custom names for every start and end location, used throughout the app
 - Elevation profile for each selected day
+- Live GPS position marker on the selected day's elevation profile
 - High-accuracy iPhone browser location via `watchPosition`
 - GPS simulation near Lynmouth for testing without sharing device location
 - Nearest-point matching and progress for the selected day and total planned sections
 - Start and end location links that open their exact coordinates in Google Maps
+- Previous/next day controls and automatic selection of today's dated walk
+- Start/end verification links to the nearest matched path coordinates while editing
 - Device-local persistence in IndexedDB (Dexie)
 - GPX import, including elevation values where the GPX contains them
 - Installable PWA and service worker
@@ -46,6 +49,8 @@ The bundled route is compiled into the app, so startup never waits for a route d
 
 The bundled geometry was generated from the OpenStreetMap South West Coast Path super-relation (`2376086`), licensed under the ODbL. It contains roughly 5,000 simplified points and named checkpoints. The bundled elevation values are illustrative because the public elevation service rate-limited the build; import a GPX containing elevation for a real profile.
 
+The bundled file is app-specific JSON rather than a GPX file. Its current metadata identifies 4,951 route points, 28 checkpoints, OpenStreetMap geometry and an illustrative elevation model. A user-imported GPX replaces the bundled geometry and elevation locally on that device.
+
 The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the app’s **Route** screen. To regenerate the bundled geometry from an Overpass JSON export:
 
 ```bash
@@ -53,3 +58,5 @@ npm run route:data -- path/to/swcp-overpass.json public/data/swcp-route.json
 ```
 
 Cloud sync is intentionally not included. IndexedDB remains the source of truth for this version, leaving accounts and shared sync as a later extension.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the feature behaviour, data flow, offline design, storage model and test coverage.
