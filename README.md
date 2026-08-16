@@ -4,14 +4,15 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 
 ## What works
 
-- Three sample walking days, plus create/edit/delete planning tools
+- A Penzance-to-Falmouth starter day, plus create/edit/delete planning tools
 - One-tap “start where the previous day ended” planning
-- Start and end entry by named checkpoint, distance slider, or latitude/longitude with nearest-path matching
+- Start and end entry by named checkpoint or latitude/longitude with nearest-path matching
 - Custom names for every start and end location, used throughout the app
+- Editable saved-location list with coordinate-to-GPX matching
 - Elevation profile for each selected day
 - Live GPS position marker on the selected day's elevation profile
 - High-accuracy iPhone browser location via `watchPosition`
-- GPS simulation near Lynmouth for testing without sharing device location
+- GPS simulation about 3 km beyond Lizard Point for testing without sharing device location
 - Nearest-point matching and progress for the selected day and total planned sections
 - Start and end location links that open their exact coordinates in Google Maps
 - Previous/next day controls and automatic selection of today's dated walk
@@ -47,14 +48,14 @@ The bundled route is compiled into the app, so startup never waits for a route d
 
 ## Trail data
 
-The bundled geometry was generated from the OpenStreetMap South West Coast Path super-relation (`2376086`), licensed under the ODbL. It contains roughly 5,000 simplified points and named checkpoints. The bundled elevation values are illustrative because the public elevation service rate-limited the build; import a GPX containing elevation for a real profile.
+The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Penzance-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 4,508 points over approximately 100.1 km with the supplied elevation values.
 
-The bundled file is app-specific JSON rather than a GPX file. Its current metadata identifies 4,951 route points, 28 checkpoints, OpenStreetMap geometry and an illustrative elevation model. A user-imported GPX replaces the bundled geometry and elevation locally on that device.
+The six default planning locations are Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved with OpenStreetMap/Nominatim and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations in Plan; those changes are stored locally in IndexedDB.
 
-The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the app’s **Route** screen. To regenerate the bundled geometry from an Overpass JSON export:
+The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the app’s **Route** screen. To regenerate the bundled segment from the supplied full-route GPX:
 
 ```bash
-npm run route:data -- path/to/swcp-overpass.json public/data/swcp-route.json
+npm run route:segment -- path/to/full-route.gpx public/data/swcp-route.json
 ```
 
 Cloud sync is intentionally not included. IndexedDB remains the source of truth for this version, leaving accounts and shared sync as a later extension.

@@ -10,7 +10,7 @@ import {
   Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { db, loadInitialData, replaceRoute } from "../lib/db";
+import { db, loadInitialData, replaceRoute, saveRouteCheckpoints } from "../lib/db";
 import { normalizeDayOrders } from "../lib/days";
 import {
   copyPreviousDayEnd, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
@@ -20,12 +20,13 @@ import {
   ascentDescent, googleMapsUrl, importGpx, nearestRoutePosition, pointsForDay,
   routePointAt, simulatedGpsNearCheckpoint,
 } from "../lib/route";
-import type { GpsReading, TrailRoute, WalkingDay } from "../types";
+import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
 
 type Tab = "track" | "plan" | "data";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
 type CoordinateDrafts = { startLat: string; startLng: string; endLat: string; endLng: string };
 type OfflineState = "preparing" | "ready" | "limited";
+type LocationEditorState = { mode: "new" | "edit"; originalName?: string; name: string; lat: string; lng: string } | null;
 
 const formatKm = (value: number, digits = 1) => `${value.toFixed(digits)} km`;
 const formatDate = (value: string) => value
@@ -47,6 +48,7 @@ export function CoastPathApp() {
   const [editor, setEditor] = useState<EditorState>(null);
   const [coordinateDrafts, setCoordinateDrafts] = useState<CoordinateDrafts>({ startLat: "", startLng: "", endLat: "", endLng: "" });
   const [coordinateMessages, setCoordinateMessages] = useState({ start: "", end: "" });
+  const [locationEditor, setLocationEditor] = useState<LocationEditorState>(null);
   const [notice, setNotice] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
 
@@ -88,7 +90,7 @@ export function CoastPathApp() {
 
   const selectedDay = days.find((day) => day.id === selectedId) ?? days[0];
   const selectedIndex = selectedDay ? days.findIndex((day) => day.id === selectedDay.id) : -1;
-  const simulationLocationLabel = route?.checkpoints.some((point) => point.name === "Lynmouth") ? "near Lynmouth" : "near the route start";
+  const simulationLocationLabel = route?.checkpoints.some((point) => point.name === "Lizard Point") ? "after Lizard Point" : "near the route start";
   const matched = useMemo(
     () => route && gps ? nearestRoutePosition(route, gps.longitude, gps.latitude) : null,
     [route, gps],
@@ -269,19 +271,47 @@ export function CoastPathApp() {
     setCoordinateMessages((messages) => ({ ...messages, [field]: "" }));
   };
 
-  const fineTuneBoundary = (field: "start" | "end", value: number) => {
-    if (!editor || !route) return;
-    const point = routePointAt(route, value);
-    setEditor({
-      ...editor,
-      day: field === "start"
-        ? { ...editor.day, startName: `${value.toFixed(1)} km point`, startDistanceKm: value, startCoordinate: undefined }
-        : { ...editor.day, endName: `${value.toFixed(1)} km point`, endDistanceKm: value, endCoordinate: undefined },
-    });
-    if (point) setCoordinateDrafts((values) => field === "start"
-      ? { ...values, startLat: point.lat.toFixed(6), startLng: point.lng.toFixed(6) }
-      : { ...values, endLat: point.lat.toFixed(6), endLng: point.lng.toFixed(6) });
-    setCoordinateMessages((messages) => ({ ...messages, [field]: "" }));
+  const openLocationEditor = (location?: Checkpoint) => {
+    setLocationEditor(location
+      ? { mode: "edit", originalName: location.name, name: location.name, lat: location.lat.toFixed(6), lng: location.lng.toFixed(6) }
+      : { mode: "new", name: "", lat: "", lng: "" });
+  };
+
+  const saveLocation = async () => {
+    if (!route || !locationEditor) return;
+    const name = locationEditor.name.trim();
+    const lat = Number(locationEditor.lat);
+    const lng = Number(locationEditor.lng);
+    if (!name || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      setNotice("Enter a location name and valid latitude and longitude."); return;
+    }
+    const duplicate = route.checkpoints.some((point) => point.name.toLowerCase() === name.toLowerCase() && point.name !== locationEditor.originalName);
+    if (duplicate) { setNotice("A saved location already uses that name."); return; }
+    const match = nearestRoutePosition(route, lng, lat);
+    if (!match) { setNotice("That coordinate could not be matched to this GPX route."); return; }
+    const saved: Checkpoint = { name, lat: match.lat, lng: match.lng, distanceKm: match.distanceKm };
+    const checkpoints = [...route.checkpoints.filter((point) => point.name !== locationEditor.originalName), saved];
+    const updatedRoute = await saveRouteCheckpoints(route, checkpoints);
+    setRoute(updatedRoute);
+    if (locationEditor.mode === "edit" && locationEditor.originalName) {
+      const updatedDays = days.map((day) => ({
+        ...day,
+        ...(day.startName === locationEditor.originalName ? { startName: name, startDistanceKm: match.distanceKm, startCoordinate: undefined } : {}),
+        ...(day.endName === locationEditor.originalName ? { endName: name, endDistanceKm: match.distanceKm, endCoordinate: undefined } : {}),
+      }));
+      if (updatedDays.length) await db.days.bulkPut(updatedDays);
+      setDays(updatedDays);
+    }
+    setLocationEditor(null);
+    setNotice(`${name} saved at ${match.distanceKm.toFixed(1)} km · matched ${Math.round(match.offRouteM)} m from the entered coordinate.`);
+  };
+
+  const deleteLocation = async (location: Checkpoint) => {
+    if (!route) return;
+    if (route.checkpoints.length <= 2) { setNotice("Keep at least two saved locations for planning a walking day."); return; }
+    const updatedRoute = await saveRouteCheckpoints(route, route.checkpoints.filter((point) => point.name !== location.name));
+    setRoute(updatedRoute);
+    setNotice(`${location.name} removed from the saved locations list.`);
   };
 
   const handleImport = async (file: File | undefined) => {
@@ -371,7 +401,7 @@ export function CoastPathApp() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <p className="chart-note">{liveProfilePoint ? "Your live position is marked in blue. " : "Start location tracking to show your position on this profile. "}Bundled elevation is illustrative until a GPX with elevation is imported.</p>
+              <p className="chart-note">{liveProfilePoint ? "Your live position is marked in blue. " : "Start location tracking to show your position on this profile. "}The bundled profile uses elevation from the supplied Penzance–Falmouth GPX.</p>
             </section>
 
             <section className="tracking-card panel">
@@ -424,6 +454,18 @@ export function CoastPathApp() {
               })}
             </div>
             {!days.length && <div className="empty-state"><MapPin /><h2>Plan your first walking day</h2><p>Pick a start and end point on the trail.</p><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add first day</button></div>}
+            <section className="location-library panel">
+              <div className="location-library-heading"><div><p className="eyebrow"><MapPin size={14} /> Planning points</p><h2>Saved start and end locations</h2><p>Coordinates are stored at the nearest matched point on the GPX route.</p></div><button className="secondary-button" onClick={() => openLocationEditor()}><Plus size={17} /> Add location</button></div>
+              <div className="location-list">
+                {route.checkpoints.map((location) => <article className="location-row" key={location.name}>
+                  <span className="location-pin"><MapPin /></span>
+                  <div><strong>{location.name}</strong><small>{location.lat.toFixed(6)}, {location.lng.toFixed(6)} · {location.distanceKm.toFixed(1)} km</small></div>
+                  <a href={googleMapsUrl(location)} target="_blank" rel="noreferrer" aria-label={`Open ${location.name} in Google Maps`}><ExternalLink /></a>
+                  <button onClick={() => openLocationEditor(location)} aria-label={`Edit ${location.name}`}><Pencil /></button>
+                  <button onClick={() => deleteLocation(location)} aria-label={`Delete ${location.name}`}><Trash2 /></button>
+                </article>)}
+              </div>
+            </section>
           </section>
         )}
 
@@ -433,9 +475,9 @@ export function CoastPathApp() {
             <div className="data-grid">
               <article className="data-card panel"><span className="data-icon"><RouteIcon /></span><p className="eyebrow">Active route</p><h2>{route.name}</h2><dl><div><dt>Route length</dt><dd>{formatKm(route.officialDistanceKm, 0)}</dd></div><div><dt>Route points</dt><dd>{route.points.filter(Boolean).length.toLocaleString()}</dd></div><div><dt>Geometry</dt><dd>{route.geometrySource}</dd></div><div><dt>Elevation</dt><dd>{route.elevationSource}</dd></div></dl></article>
               <article className="import-card panel"><span className="data-icon coral"><FileUp /></span><p className="eyebrow">Bring your own data</p><h2>Import a GPX route</h2><p>A GPX track with elevation replaces the bundled route and powers the profile, GPS progress and coordinate matching — entirely on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled SWCP route</button></article>
-              <article className="simulation-card panel"><span className="data-icon blue"><Satellite /></span><p className="eyebrow">Testing tool</p><h2>GPS simulation</h2><p>Use an iPhone-like test reading about 2 km after Lynmouth on the bundled route, or after the start of an imported route. It uses the same matching and progress calculations as your real location.</p><label className="simulation-toggle route-simulation-toggle"><input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View on Track screen</button>}</article>
+              <article className="simulation-card panel"><span className="data-icon blue"><Satellite /></span><p className="eyebrow">Testing tool</p><h2>GPS simulation</h2><p>Use an iPhone-like test reading about 3 km beyond Lizard Point, or after the start when that location is not present. It uses the same matching and progress calculations as your real location.</p><label className="simulation-toggle route-simulation-toggle"><input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View on Track screen</button>}</article>
             </div>
-            <div className="offline-explainer"><CloudOff /><div><strong>Bundled route data</strong><p>The default route is derived from OpenStreetMap relation 2376086 and contains 4,951 simplified points. Its elevation is an illustrative model, not survey-grade GPX elevation. Import your own GPX to replace both route geometry and elevation.</p></div></div>
+            <div className="offline-explainer"><CloudOff /><div><strong>Bundled Penzance–Falmouth data</strong><p>The default route is extracted from the supplied elevation GPX and contains {route.points.filter(Boolean).length.toLocaleString()} points with GPX elevation values. Only the Penzance to Falmouth section is stored in the app.</p></div></div>
           </section>
         )}
       </main>
@@ -452,18 +494,28 @@ export function CoastPathApp() {
             <div className="editor-heading"><div><p className="eyebrow">Day {editor.day.order}</p><h2 id="editor-title">{editor.mode === "new" ? "Plan a walking day" : "Edit walking day"}</h2></div><button className="close-button" onClick={() => setEditor(null)} aria-label="Close editor"><X /></button></div>
             <label>Date (optional)<input type="date" value={editor.day.date} onChange={(event) => setEditor({ ...editor, day: { ...editor.day, date: event.target.value } })} /></label>
             <label>Start point<select value={editor.day.startName} onChange={(event) => chooseCheckpoint("start", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.startName) && <option value={editor.day.startName}>{editor.day.startName}</option>}{route.checkpoints.map((point) => <option key={`s-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
-            <label className="distance-control"><span><b>Fine-tune start</b><em>{editor.day.startDistanceKm.toFixed(1)} km along trail</em></span><input type="range" min="0" max={route.officialDistanceKm} step="0.1" value={editor.day.startDistanceKm} onChange={(event) => fineTuneBoundary("start", Number(event.target.value))} /></label>
             <CoordinateMatcher field="start" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.start} onMatch={() => matchCoordinates("start")} />
             <label>Start location name<input type="text" placeholder="For example: The harbour steps" value={editor.day.startName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "start", event.target.value) })} /></label>
             <VerifyPointLink route={route} distanceKm={editor.day.startDistanceKm} label="Verify start point in Google Maps" />
             {editor.day.order > 1 && <button className="copy-button" onClick={usePreviousEnd}><ArrowDown size={16} /> Start where the previous day ended</button>}
             <label>End point<select value={editor.day.endName} onChange={(event) => chooseCheckpoint("end", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.endName) && <option value={editor.day.endName}>{editor.day.endName}</option>}{route.checkpoints.map((point) => <option key={`e-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
-            <label className="distance-control"><span><b>Fine-tune end</b><em>{editor.day.endDistanceKm.toFixed(1)} km along trail</em></span><input type="range" min="0" max={route.officialDistanceKm} step="0.1" value={editor.day.endDistanceKm} onChange={(event) => fineTuneBoundary("end", Number(event.target.value))} /></label>
             <CoordinateMatcher field="end" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.end} onMatch={() => matchCoordinates("end")} />
             <label>End location name<input type="text" placeholder="For example: Café by the beach" value={editor.day.endName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "end", event.target.value) })} /></label>
             <VerifyPointLink route={route} distanceKm={editor.day.endDistanceKm} label="Verify end point in Google Maps" />
             <div className="editor-preview"><span>Planned distance</span><strong>{Math.max(0, editor.day.endDistanceKm - editor.day.startDistanceKm).toFixed(1)} km</strong></div>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setEditor(null)}>Cancel</button><button className="primary-button" onClick={saveDay}><Check size={17} /> Save day offline</button></div>
+          </section>
+        </div>
+      )}
+
+      {locationEditor && route && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLocationEditor(null); }}>
+          <section className="day-editor location-editor" role="dialog" aria-modal="true" aria-labelledby="location-editor-title">
+            <div className="editor-heading"><div><p className="eyebrow">Planning point</p><h2 id="location-editor-title">{locationEditor.mode === "new" ? "Add a saved location" : "Edit saved location"}</h2></div><button className="close-button" onClick={() => setLocationEditor(null)} aria-label="Close location editor"><X /></button></div>
+            <p className="location-editor-note">Enter the place coordinates. The app will store the nearest point on the Penzance–Falmouth GPX.</p>
+            <label>Location name<input type="text" value={locationEditor.name} onChange={(event) => setLocationEditor({ ...locationEditor, name: event.target.value })} placeholder="For example: Mullion Cove" /></label>
+            <div className="location-coordinate-fields"><label>Latitude<input inputMode="decimal" type="number" min="-90" max="90" step="any" value={locationEditor.lat} onChange={(event) => setLocationEditor({ ...locationEditor, lat: event.target.value })} /></label><label>Longitude<input inputMode="decimal" type="number" min="-180" max="180" step="any" value={locationEditor.lng} onChange={(event) => setLocationEditor({ ...locationEditor, lng: event.target.value })} /></label></div>
+            <div className="editor-actions"><button className="secondary-button" onClick={() => setLocationEditor(null)}>Cancel</button><button className="primary-button" onClick={saveLocation}><MapPin size={17} /> Match and save</button></div>
           </section>
         </div>
       )}

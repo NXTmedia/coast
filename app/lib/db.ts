@@ -1,9 +1,10 @@
 "use client";
 
 import Dexie, { type EntityTable } from "dexie";
-import type { TrailRoute, WalkingDay } from "../types";
+import type { Checkpoint, TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../../public/data/swcp-route.json";
-import { normalizeDayOrders } from "./days";
+import { normalizeDayOrders, removeLegacyStarterDays } from "./days";
+import { migrateDaysToRoute } from "./route";
 
 type StoredRoute = { key: string; data: TrailRoute };
 type StoredSetting = { key: string; value: string };
@@ -55,9 +56,16 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 1800): Promise<T> {
 
 export async function loadInitialData(): Promise<{ route: TrailRoute; days: WalkingDay[]; storageReady: boolean }> {
   let route = bundledRoute;
+  let previousBundledRoute: TrailRoute | null = null;
   let storageReady = true;
   try {
-    route = (await withTimeout(db.routes.get("active")))?.data ?? bundledRoute;
+    const storedRoute = (await withTimeout(db.routes.get("active")))?.data;
+    if (storedRoute?.id.startsWith("swcp-osm-") && storedRoute.id !== bundledRoute.id) {
+      previousBundledRoute = storedRoute;
+      route = bundledRoute;
+    } else {
+      route = storedRoute ?? bundledRoute;
+    }
   } catch {
     storageReady = false;
   }
@@ -68,13 +76,18 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   } catch {
     storageReady = false;
   }
+  if (previousBundledRoute && days.length) days = migrateDaysToRoute(days, previousBundledRoute, bundledRoute);
+  if (route.id === bundledRoute.id) days = removeLegacyStarterDays(days);
   if (!days.length) days = defaultDays(route);
   days = normalizeDayOrders(days);
 
   // The route is compiled into the app, so startup never depends on a network
   // request. Refresh IndexedDB in the background without blocking the UI.
   if (route.id === bundledRoute.id) db.routes.put({ key: "active", data: route }).catch(() => undefined);
-  if (days.length) db.days.bulkPut(days).catch(() => undefined);
+  db.transaction("rw", db.days, async () => {
+    await db.days.clear();
+    if (days.length) await db.days.bulkPut(days);
+  }).catch(() => undefined);
 
   return { route, days, storageReady };
 }
@@ -82,4 +95,10 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
 export async function replaceRoute(route: TrailRoute) {
   await db.routes.put({ key: "active", data: route });
   await db.days.clear();
+}
+
+export async function saveRouteCheckpoints(route: TrailRoute, checkpoints: Checkpoint[]): Promise<TrailRoute> {
+  const updated = { ...route, checkpoints: [...checkpoints].sort((a, b) => a.distanceKm - b.distanceKm) };
+  await db.routes.put({ key: "active", data: updated });
+  return updated;
 }

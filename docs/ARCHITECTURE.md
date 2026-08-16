@@ -12,19 +12,33 @@ On startup, the app selects the walking day dated today. If no day matches today
 - `app/lib/db.ts` defines IndexedDB storage and loads the bundled route without requiring a network request.
 - `app/lib/days.ts` keeps itinerary order contiguous after additions and deletions.
 - `app/lib/planning.ts` contains planned-distance, progress, naming and date-selection rules.
-- `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, simulation and Google Maps link generation.
+- `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and Google Maps link generation.
+- `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Penzance-to-Falmouth GPX section.
 - `public/sw.js` caches the application shell and bundled route for offline startup.
 - `tests/` contains automated tests for the important planning, route, GPS, persistence and PWA behaviours.
 
 ## Route and elevation data
 
-The bundled route is stored in `public/data/swcp-route.json` and compiled into the application at build time. It is derived from OpenStreetMap relation 2376086 under the ODbL and currently contains 4,951 simplified points and 28 named checkpoints.
+The bundled route is stored in `public/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Penzance to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
 
-The bundled elevations are illustrative and should not be treated as survey-grade walking data. Importing a GPX on the Route screen replaces both the route geometry and elevation profile on that device. Imported GPX tracks are converted to the same internal route format by `app/lib/route.ts`.
+The resulting route contains 4,508 points, approximately 100.1 km of path and the supplied elevation values. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX on the Route screen replaces both geometry and elevation locally.
+
+The six default planning locations were geocoded with OpenStreetMap/Nominatim and snapped to the nearest supplied GPX point:
+
+| Location | Matched latitude | Matched longitude | Distance along route |
+|---|---:|---:|---:|
+| Penzance | 50.119316 | -5.533253 | 0.0 km |
+| Porthleven | 50.085023 | -5.316053 | 22.6 km |
+| Lizard Point | 49.959480 | -5.206519 | 45.2 km |
+| Coverack | 50.023079 | -5.096928 | 62.3 km |
+| Helford | 50.093298 | -5.135753 | 83.6 km |
+| Falmouth | 50.155225 | -5.068876 | 100.1 km |
+
+The Plan screen edits the active route's checkpoint list. New or edited place coordinates are projected to the nearest GPX point before being saved. At least two locations are retained so a walking day can always have a start and end.
 
 ## Location pipeline
 
-Real location readings come from `navigator.geolocation.watchPosition()` with high accuracy requested. Simulation creates an iPhone-shaped reading approximately 2 km after Lynmouth, including latitude, longitude, accuracy, altitude, heading and speed. Both sources feed the same pipeline:
+Real location readings come from `navigator.geolocation.watchPosition()` with high accuracy requested. Simulation creates an iPhone-shaped reading approximately 3 km after Lizard Point, including latitude, longitude, accuracy, altitude, heading and speed. Both sources feed the same pipeline:
 
 1. Receive a GPS coordinate.
 2. Find the nearest projected point on the route line.
@@ -41,7 +55,7 @@ Track-screen endpoint links use the user's entered coordinate when one exists; o
 
 ## Persistence and offline operation
 
-Dexie stores the active route, walking days and settings in the browser's IndexedDB database named `coastline-swcp`. Walking days use stable IDs and a numeric order that is repaired on every load and after changes.
+Dexie stores the active route (including its editable saved locations), walking days and settings in the browser's IndexedDB database named `coastline-swcp`. Walking days use stable IDs and a numeric order that is repaired on every load and after changes. When the old bundled full-path route is detected, compatible Penzance-to-Falmouth days are rematched by their endpoint coordinates; the former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
 The service worker caches the application shell, manifest and bundled route. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening Google Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
 
@@ -63,6 +77,6 @@ Run `npm test` for the automated suite and `npm run build` for the production co
 ## Current boundaries
 
 - Data is device-local; there is no account or cloud sync.
-- The default elevation model is illustrative.
+- Supplied GPX elevation is more useful than the former illustrative profile but remains subject to the source file's elevation accuracy and sampling noise.
 - GPS tracking in an iPhone web app depends on Safari permission and iOS background-execution limits.
 - Google Maps links are external and are not available offline unless the device already has suitable offline map data.

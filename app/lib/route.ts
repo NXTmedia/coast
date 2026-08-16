@@ -1,5 +1,5 @@
 import { gpx } from "@tmcw/togeojson";
-import type { Checkpoint, GpsReading, MatchedPosition, RoutePoint, TrailRoute } from "../types";
+import type { Checkpoint, GpsReading, MatchedPosition, RoutePoint, TrailRoute, WalkingDay } from "../types";
 
 export const haversineKm = (a: Pick<RoutePoint, "lng" | "lat">, b: Pick<RoutePoint, "lng" | "lat">) => {
   const toRad = (value: number) => value * Math.PI / 180;
@@ -64,7 +64,7 @@ export function routePointAt(route: TrailRoute, distanceKm: number): RoutePoint 
   return previous;
 }
 
-export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "Lynmouth", offsetKm = 2): GpsReading | null {
+export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "Lizard Point", offsetKm = 3): GpsReading | null {
   const checkpoint = route.checkpoints.find((point) => point.name === checkpointName) ?? route.checkpoints[0];
   if (!checkpoint) return null;
   const point = routePointAt(route, Math.min(route.officialDistanceKm, checkpoint.distanceKm + offsetKm));
@@ -83,6 +83,18 @@ export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "
 export function googleMapsUrl(point: Pick<RoutePoint, "lat" | "lng">): string {
   const query = encodeURIComponent(`${point.lat.toFixed(6)},${point.lng.toFixed(6)}`);
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
+
+export function migrateDaysToRoute(days: WalkingDay[], sourceRoute: TrailRoute, targetRoute: TrailRoute, maximumOffsetM = 5000): WalkingDay[] {
+  return days.flatMap((day) => {
+    const sourceStart = day.startCoordinate ?? routePointAt(sourceRoute, day.startDistanceKm);
+    const sourceEnd = day.endCoordinate ?? routePointAt(sourceRoute, day.endDistanceKm);
+    if (!sourceStart || !sourceEnd) return [];
+    const start = nearestRoutePosition(targetRoute, sourceStart.lng, sourceStart.lat);
+    const end = nearestRoutePosition(targetRoute, sourceEnd.lng, sourceEnd.lat);
+    if (!start || !end || start.offRouteM > maximumOffsetM || end.offRouteM > maximumOffsetM || end.distanceKm <= start.distanceKm) return [];
+    return [{ ...day, startDistanceKm: start.distanceKm, endDistanceKm: end.distanceKm }];
+  });
 }
 
 export function ascentDescent(points: RoutePoint[]) {

@@ -17,7 +17,10 @@ test("ships the PWA and offline route dataset", async () => {
   assert.match(serviceWorker, /navigationResponse/);
   assert.doesNotMatch(serviceWorker, /return cached \?\? network/);
   assert.ok(route.points.filter(Boolean).length > 4000);
-  assert.ok(route.officialDistanceKm >= 1000);
+  assert.ok(route.officialDistanceKm > 95 && route.officialDistanceKm < 105);
+  assert.match(route.geometrySource, /Supplied South West Coast Path GPX/);
+  assert.match(route.elevationSource, /Supplied GPX elevation/);
+  assert.deepEqual(route.checkpoints.map((point) => point.name), ["Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
 });
 
 test("includes the requested offline-first features", async () => {
@@ -48,6 +51,10 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /googleMapsUrl\(startLocation\)/);
   assert.match(app, /Verify start point in Google Maps/);
   assert.match(app, /Verify end point in Google Maps/);
+  assert.match(app, /Saved start and end locations/);
+  assert.match(app, /Match and save/);
+  assert.doesNotMatch(app, /Fine-tune start/);
+  assert.doesNotMatch(app, /Fine-tune end/);
   assert.match(app, /AreaChart/);
   assert.doesNotMatch(app, /CoastMap/);
   assert.match(planning, /totalPlannedDistanceKm/);

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ascentDescent, googleMapsUrl, nearestRoutePosition, pointsForDay,
-  simulatedGpsNearCheckpoint,
+  ascentDescent, googleMapsUrl, migrateDaysToRoute, nearestRoutePosition,
+  pointsForDay, simulatedGpsNearCheckpoint,
 } from "../app/lib/route.ts";
 
 const route = {
@@ -17,7 +17,7 @@ const route = {
     { lng: -3.95, lat: 50, elevationM: 40, distanceKm: 5 },
     { lng: -3.9, lat: 50, elevationM: 20, distanceKm: 10 },
   ],
-  checkpoints: [{ name: "Lynmouth", lng: -3.95, lat: 50, distanceKm: 5 }],
+  checkpoints: [{ name: "Lizard Point", lng: -3.95, lat: 50, distanceKm: 5 }],
 };
 
 test("coordinates are matched to the nearest position along the route", () => {
@@ -33,15 +33,32 @@ test("day profiles are sliced by distance and ascent/descent is calculated", () 
   assert.deepEqual(ascentDescent(profile), { ascent: 30, descent: 20 });
 });
 
-test("GPS simulation creates an iPhone-like reading just after Lynmouth", () => {
+test("GPS simulation creates an iPhone-like reading 3 km after Lizard Point", () => {
   const gps = simulatedGpsNearCheckpoint(route);
   assert.ok(gps);
   assert.equal(gps.accuracy, 6);
   assert.equal(gps.speed, 1.35);
   const match = nearestRoutePosition(route, gps.longitude, gps.latitude);
   assert.ok(match);
-  assert.ok(Math.abs(match.distanceKm - 7) < 0.01);
+  assert.ok(Math.abs(match.distanceKm - 8) < 0.01);
   assert.ok(match.offRouteM < 1);
+});
+
+test("saved walking days migrate from the old bundled route by endpoint coordinates", () => {
+  const target = {
+    ...route,
+    id: "target",
+    points: route.points.map((point) => point && ({ ...point, distanceKm: point.distanceKm * 2 })),
+    officialDistanceKm: 20,
+  };
+  const days = [{
+    id: "planned", order: 1, date: "", startName: "Start", endName: "End",
+    startDistanceKm: 0, endDistanceKm: 10,
+  }];
+  const migrated = migrateDaysToRoute(days, route, target);
+  assert.equal(migrated.length, 1);
+  assert.ok(Math.abs(migrated[0].startDistanceKm) < 0.01);
+  assert.ok(Math.abs(migrated[0].endDistanceKm - 20) < 0.01);
 });
 
 test("Google Maps links contain the exact endpoint coordinates", () => {
