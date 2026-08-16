@@ -8,6 +8,8 @@ On startup, the app selects the walking day dated today. If no day matches today
 
 When Day 1 is assigned or moved to a new start date, the app fills every walking day with consecutive calendar dates. Dates on Days 2 onward can then be edited independently without rescheduling the rest of the itinerary. A newly appended day inherits the calendar day after the preceding dated day.
 
+On the Track screen, a phone-sized landscape viewport (landscape orientation with no more than 500 CSS pixels of height) activates profile-only mode. The top bar, day picker, progress information, summary and bottom navigation are hidden while the elevation card fills the available dynamic viewport with iPhone safe-area padding. Rotating back to portrait restores the normal layout without changing application state. Larger landscape devices retain the standard interface.
+
 ## Application structure
 
 - `app/components/CoastPathApp.tsx` owns the main React interface and coordinates loading, editing, GPS, simulation and navigation.

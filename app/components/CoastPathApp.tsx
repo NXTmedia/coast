@@ -350,7 +350,7 @@ export function CoastPathApp() {
   if (!route) return <main className="loading-state"><span className="loading-ring" /><h1>Preparing the coast path…</h1><p>Saving the route for offline use.</p></main>;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell tab-${tab}${tab === "track" && selectedDay ? " landscape-profile-ready" : ""}`}>
       <header className="topbar">
         <button className="brand" onClick={() => setTab("track")} aria-label="Open trail tracker">
           <span className="brand-mark"><Footprints size={21} /></span>

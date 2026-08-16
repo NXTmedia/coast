@@ -26,6 +26,7 @@ test("ships the PWA and offline route dataset", async () => {
 
 test("includes the requested offline-first features", async () => {
   const app = await readFile(new URL("app/components/CoastPathApp.tsx", root), "utf8");
+  const styles = await readFile(new URL("app/globals.css", root), "utf8");
   const database = await readFile(new URL("app/lib/db.ts", root), "utf8");
   const days = await readFile(new URL("app/lib/days.ts", root), "utf8");
   const planning = await readFile(new URL("app/lib/planning.ts", root), "utf8");
@@ -69,6 +70,11 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /<section className="hero-row">/);
   assert.doesNotMatch(app, /<Navigation size=\{14\} \/> Trail tracker/);
   assert.doesNotMatch(app, /CoastMap/);
+  assert.match(app, /landscape-profile-ready/);
+  assert.match(styles, /orientation: landscape/);
+  assert.match(styles, /max-height: 500px/);
+  assert.match(styles, /main-content > :not\(\.profile-card\)/);
+  assert.match(styles, /height: 100dvh/);
   assert.match(planning, /totalPlannedDistanceKm/);
   assert.match(matching, /nearestRoutePosition/);
 });
