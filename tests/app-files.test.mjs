@@ -56,8 +56,10 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /Fine-tune start/);
   assert.doesNotMatch(app, /Fine-tune end/);
   assert.match(app, /AreaChart/);
-  assert.ok(app.indexOf('<section className="profile-card panel">') < app.indexOf('<section className="hero-row">'));
-  assert.match(app, /<p className="eyebrow">Trail tracker<\/p>/);
+  assert.match(app, /<h2>\{selectedDay\.startName\} <ArrowRight \/> \{selectedDay\.endName\}<\/h2>/);
+  assert.match(app, /profile-day-line/);
+  assert.match(app, /<time dateTime=\{selectedDay\.date \|\| undefined\}>\{formatDate\(selectedDay\.date\)\}<\/time>/);
+  assert.doesNotMatch(app, /<section className="hero-row">/);
   assert.doesNotMatch(app, /<Navigation size=\{14\} \/> Trail tracker/);
   assert.doesNotMatch(app, /CoastMap/);
   assert.match(planning, /totalPlannedDistanceKm/);

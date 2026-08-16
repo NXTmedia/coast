@@ -369,7 +369,10 @@ export function CoastPathApp() {
           <>
             <section className="profile-card panel">
               <div className="panel-heading">
-                <div><p className="eyebrow"><Mountain size={14} /> Day {selectedDay.order}</p><h2>Elevation profile</h2></div>
+                <div className="profile-heading-copy">
+                  <p className="eyebrow profile-day-line"><span><Mountain size={14} /> Day {selectedDay.order}</span><time dateTime={selectedDay.date || undefined}>{formatDate(selectedDay.date)}</time></p>
+                  <h2>{selectedDay.startName} <ArrowRight /> {selectedDay.endName}</h2>
+                </div>
                 <div className="climb-summary"><span><ArrowUp /> {climbing.ascent.toLocaleString()} m</span><span><ArrowDown /> {climbing.descent.toLocaleString()} m</span></div>
               </div>
               <div className="chart-wrap">
@@ -389,12 +392,7 @@ export function CoastPathApp() {
               <p className="chart-note">{liveProfilePoint ? "Your live position is marked in blue. " : "Start location tracking to show your position on this profile. "}The bundled profile uses elevation from the supplied Penzance–Falmouth GPX.</p>
             </section>
 
-            <section className="hero-row">
-              <div>
-                <p className="eyebrow">Trail tracker</p>
-                <h1>{selectedDay.startName} <ArrowRight /> {selectedDay.endName}</h1>
-                <p>Day {selectedDay.order} · {formatDate(selectedDay.date)}</p>
-              </div>
+            <section className="track-day-picker">
               <div className="day-picker"><label htmlFor="selected-day">Viewing</label><div className="day-picker-control">
                 <button onClick={() => selectAdjacentDay(-1)} disabled={selectedIndex <= 0} aria-label="Previous walking day"><ChevronLeft /></button>
                 <select id="selected-day" value={selectedDay.id} onChange={(event) => setSelectedId(event.target.value)}>
