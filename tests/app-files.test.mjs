@@ -15,6 +15,12 @@ test("ships the PWA and offline route dataset", async () => {
   assert.match(serviceWorker, /\/data\/swcp-route\.json/);
   assert.match(serviceWorker, /PREPARE_OFFLINE/);
   assert.match(serviceWorker, /navigationResponse/);
+  assert.match(serviceWorker, /shellAssetsFromHtml/);
+  assert.match(serviceWorker, /cacheAssetGraph/);
+  assert.match(serviceWorker, /importedAssetsFromText/);
+  assert.match(serviceWorker, /READY_MARKER/);
+  assert.match(serviceWorker, /hasCachedShell/);
+  assert.match(serviceWorker, /if \(!ready\) throw new Error\("The complete app shell could not be cached"\)/);
   assert.doesNotMatch(serviceWorker, /return cached \?\? network/);
   assert.ok(route.points.filter(Boolean).length > 4600);
   assert.ok(route.officialDistanceKm > 105 && route.officialDistanceKm < 106);
@@ -53,6 +59,9 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /editor\.day\.date/);
   assert.match(app, /window\.setTimeout\(\(\) => setNotice\(""\), 4000\)/);
   assert.match(app, /window\.clearTimeout\(timeout\)/);
+  assert.match(app, /withClientTimeout\(navigator\.serviceWorker\.register\("\/sw\.js"\), 8000\)/);
+  assert.match(app, /handleOnline = \(\) => \{ setOnline\(true\); refreshOfflineState\(\); \}/);
+  assert.match(app, /navigator\.serviceWorker\.controller \? "ready" : "limited"/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Start location name/);
   assert.match(app, /End location name/);

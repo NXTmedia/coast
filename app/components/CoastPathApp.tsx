@@ -74,21 +74,30 @@ export function CoastPathApp() {
       })
       .catch((error) => setLoadingError(error instanceof Error ? error.message : "Unable to load the trail."));
     setOnline(navigator.onLine);
-    const handleOnline = () => setOnline(true);
-    const handleOffline = () => setOnline(false);
+    const isLocalDevelopment = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+    const refreshOfflineState = () => {
+      if (isLocalDevelopment) { setOfflineState("ready"); return; }
+      if (!navigator.onLine) {
+        setOfflineState(navigator.serviceWorker.controller ? "ready" : "limited");
+        return;
+      }
+      setOfflineState("preparing");
+      prepareOfflineApp().then((ready) => setOfflineState((current) => current === "limited" ? "limited" : ready ? "ready" : "limited"));
+    };
+    const handleOnline = () => { setOnline(true); refreshOfflineState(); };
+    const handleOffline = () => { setOnline(false); setOfflineState(navigator.serviceWorker.controller ? "ready" : "limited"); };
     const handleInstall = (event: Event) => { event.preventDefault(); setInstallPrompt(event); };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("beforeinstallprompt", handleInstall);
     if ("serviceWorker" in navigator) {
-      const isLocalDevelopment = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
       if (isLocalDevelopment) {
         // A development service worker can cache stale Vite module URLs after HMR.
         navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister()));
         caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("coastline-")).map((key) => caches.delete(key))));
         setOfflineState("ready");
       } else {
-        prepareOfflineApp().then((ready) => setOfflineState((current) => current === "limited" ? "limited" : ready ? "ready" : "limited"));
+        refreshOfflineState();
       }
     } else {
       setOfflineState("limited");
@@ -646,12 +655,9 @@ function CoordinateMatcher({ field, drafts, setDrafts, message, onMatch }: {
 
 async function prepareOfflineApp(): Promise<boolean> {
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    const readyRegistration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Service worker timeout")), 8000)),
-    ]);
-    const worker = readyRegistration.active ?? registration.active;
+    const registration = await withClientTimeout(navigator.serviceWorker.register("/sw.js"), 8000);
+    const readyRegistration = await withClientTimeout(navigator.serviceWorker.ready, 8000);
+    const worker = navigator.serviceWorker.controller ?? readyRegistration.active ?? registration.active;
     if (!worker) return false;
     return await new Promise<boolean>((resolve) => {
       const channel = new MessageChannel();
@@ -665,4 +671,14 @@ async function prepareOfflineApp(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function withClientTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error("Offline preparation timed out")), timeoutMs);
+    Promise.resolve(promise).then(
+      (value) => { window.clearTimeout(timeout); resolve(value); },
+      (error) => { window.clearTimeout(timeout); reject(error); },
+    );
+  });
 }
