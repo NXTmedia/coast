@@ -10,6 +10,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Custom names for every start and end location, used throughout the app
 - Editable saved-location list with coordinate-to-GPX matching
 - Elevation profile for each selected day
+- Elevation profile positioned first beneath the Track screen top bar on mobile
 - Live GPS position marker on the selected day's elevation profile
 - High-accuracy iPhone browser location via `watchPosition`
 - GPS simulation about 3 km beyond Lizard Point for testing without sharing device location

@@ -1,4 +1,4 @@
-const VERSION = "coastline-v6";
+const VERSION = "coastline-v7";
 const SHELL_CACHE = `${VERSION}-shell`;
 const SHELL = ["/", "/manifest.webmanifest", "/data/swcp-route.json"];
 

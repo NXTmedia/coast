@@ -367,21 +367,6 @@ export function CoastPathApp() {
       <main className="main-content">
         {tab === "track" && selectedDay && (
           <>
-            <section className="hero-row">
-              <div>
-                <p className="eyebrow"><Navigation size={14} /> Trail tracker</p>
-                <h1>{selectedDay.startName} <ArrowRight /> {selectedDay.endName}</h1>
-                <p>Day {selectedDay.order} · {formatDate(selectedDay.date)}</p>
-              </div>
-              <div className="day-picker"><label htmlFor="selected-day">Viewing</label><div className="day-picker-control">
-                <button onClick={() => selectAdjacentDay(-1)} disabled={selectedIndex <= 0} aria-label="Previous walking day"><ChevronLeft /></button>
-                <select id="selected-day" value={selectedDay.id} onChange={(event) => setSelectedId(event.target.value)}>
-                  {days.map((day) => <option key={day.id} value={day.id}>Day {day.order}: {day.startName} → {day.endName}</option>)}
-                </select>
-                <button onClick={() => selectAdjacentDay(1)} disabled={selectedIndex < 0 || selectedIndex >= days.length - 1} aria-label="Next walking day"><ChevronRight /></button>
-              </div></div>
-            </section>
-
             <section className="profile-card panel">
               <div className="panel-heading">
                 <div><p className="eyebrow"><Mountain size={14} /> Day {selectedDay.order}</p><h2>Elevation profile</h2></div>
@@ -402,6 +387,21 @@ export function CoastPathApp() {
                 </ResponsiveContainer>
               </div>
               <p className="chart-note">{liveProfilePoint ? "Your live position is marked in blue. " : "Start location tracking to show your position on this profile. "}The bundled profile uses elevation from the supplied Penzance–Falmouth GPX.</p>
+            </section>
+
+            <section className="hero-row">
+              <div>
+                <p className="eyebrow">Trail tracker</p>
+                <h1>{selectedDay.startName} <ArrowRight /> {selectedDay.endName}</h1>
+                <p>Day {selectedDay.order} · {formatDate(selectedDay.date)}</p>
+              </div>
+              <div className="day-picker"><label htmlFor="selected-day">Viewing</label><div className="day-picker-control">
+                <button onClick={() => selectAdjacentDay(-1)} disabled={selectedIndex <= 0} aria-label="Previous walking day"><ChevronLeft /></button>
+                <select id="selected-day" value={selectedDay.id} onChange={(event) => setSelectedId(event.target.value)}>
+                  {days.map((day) => <option key={day.id} value={day.id}>Day {day.order}: {day.startName} → {day.endName}</option>)}
+                </select>
+                <button onClick={() => selectAdjacentDay(1)} disabled={selectedIndex < 0 || selectedIndex >= days.length - 1} aria-label="Next walking day"><ChevronRight /></button>
+              </div></div>
             </section>
 
             <section className="tracking-card panel">

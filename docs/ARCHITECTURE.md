@@ -4,7 +4,7 @@
 
 Coastline is a mobile-first, offline-first planner and progress tracker for walks on the South West Coast Path. A user creates ordered walking days, selects start and end positions along a master route, optionally assigns dates and custom location names, and can then view distance and elevation for each day.
 
-On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen also provides previous and next controls for moving through the itinerary.
+On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen leads with the selected day's elevation profile immediately below the top bar, followed by the route heading and previous/next controls for moving through the itinerary.
 
 ## Application structure
 
