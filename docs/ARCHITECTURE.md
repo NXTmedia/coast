@@ -4,7 +4,9 @@
 
 Coastline is a mobile-first, offline-first planner and progress tracker for walks on the South West Coast Path. A user creates ordered walking days, selects start and end positions along a master route, optionally assigns dates and custom location names, and can then view distance and elevation for each day.
 
-On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen leads with the selected day's elevation profile immediately below the top bar. The profile title is the walk's start and end locations, with the day number and date above it. A single compact selector beneath the chart provides previous/next itinerary controls without repeating the route title or date.
+On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen leads with the selected day's elevation profile immediately below the top bar. The profile title is the walk's start and end locations, with the day number and date above it. A compact selector inside the elevation card provides previous/next itinerary controls without repeating the route title or date. Highest elevation sits beside ascent and descent in the same header.
+
+The Track progress card combines daily progress, total-plan progress and—only while GPS is active—trail-match accuracy. The former repeated Today metric and inactive trail-match card are omitted. A final compact action row retains the useful start/end Google Maps links and Edit action without repeating distance or elevation statistics.
 
 When Day 1 is assigned or moved to a new start date, the app fills every walking day with consecutive calendar dates. Dates on Days 2 onward can then be edited independently without rescheduling the rest of the itinerary. A newly appended day inherits the calendar day after the preceding dated day.
 
@@ -25,7 +27,7 @@ On the Track screen, a phone-sized landscape viewport (landscape orientation wit
 
 The bundled route is stored in `public/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Mousehole to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
 
-The resulting route contains 4,685 points, approximately 105.5 km of path and the supplied elevation values. The added Mousehole-to-Penzance section is approximately 5.5 km. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX on the Route screen replaces both geometry and elevation locally.
+The resulting route contains 4,685 points, approximately 105.5 km of path and the supplied elevation values. The added Mousehole-to-Penzance section is approximately 5.5 km. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX from the Locations screen's advanced route-data area replaces both geometry and elevation locally.
 
 The seven default planning locations were geocoded with OpenStreetMap/Nominatim and snapped to the nearest supplied GPX point:
 
@@ -39,7 +41,7 @@ The seven default planning locations were geocoded with OpenStreetMap/Nominatim 
 | Helford | 50.093298 | -5.135753 | 89.1 km |
 | Falmouth | 50.155225 | -5.068876 | 105.5 km |
 
-The Plan screen edits the active route's checkpoint list. New or edited place coordinates are projected to the nearest GPX point before being saved. At least two locations are retained so a walking day can always have a start and end.
+The bottom navigation contains Track, Plan and Locations. Plan is limited to walking-day scheduling. Locations edits the active route's checkpoint list and also contains GPS simulation plus an expandable advanced section for GPX import, bundled-route restoration and route facts. New or edited place coordinates are projected to the nearest GPX point before being saved. At least two locations are retained so a walking day can always have a start and end.
 
 ## Location pipeline
 

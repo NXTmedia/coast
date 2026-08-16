@@ -57,7 +57,12 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /googleMapsUrl\(startLocation\)/);
   assert.match(app, /Verify start point in Google Maps/);
   assert.match(app, /Verify end point in Google Maps/);
-  assert.match(app, /Saved start and end locations/);
+  assert.match(app, /<h1>Locations<\/h1>/);
+  assert.match(app, /label="Locations"/);
+  assert.match(app, /tab === "locations"/);
+  assert.doesNotMatch(app, /tab === "data"/);
+  assert.doesNotMatch(app, /label="Route"/);
+  assert.doesNotMatch(app, /Offline trail data/);
   assert.match(app, /Match and save/);
   assert.doesNotMatch(app, /Fine-tune start/);
   assert.doesNotMatch(app, /Fine-tune end/);
@@ -69,6 +74,13 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /The bundled profile uses elevation/);
   assert.doesNotMatch(app, /<section className="hero-row">/);
   assert.doesNotMatch(app, /<Navigation size=\{14\} \/> Trail tracker/);
+  assert.match(app, /profile-day-navigation/);
+  assert.match(app, /<Mountain \/> \{highestPoint\.toLocaleString\(\)\} m/);
+  assert.match(app, /progress-details/);
+  assert.doesNotMatch(app, /Use your iPhone location to calculate progress/);
+  assert.doesNotMatch(app, /<Metric /);
+  assert.doesNotMatch(app, /summary-stats/);
+  assert.match(app, /Route data &amp; GPX/);
   assert.doesNotMatch(app, /CoastMap/);
   assert.match(app, /landscape-profile-ready/);
   assert.match(styles, /orientation: landscape/);

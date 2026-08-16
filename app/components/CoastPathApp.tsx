@@ -22,7 +22,7 @@ import {
 } from "../lib/route";
 import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
 
-type Tab = "track" | "plan" | "data";
+type Tab = "track" | "plan" | "locations";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
 type CoordinateDrafts = { startLat: string; startLng: string; endLat: string; endLng: string };
 type OfflineState = "preparing" | "ready" | "limited";
@@ -100,6 +100,7 @@ export function CoastPathApp() {
     [route, selectedDay],
   );
   const climbing = useMemo(() => ascentDescent(dayPoints), [dayPoints]);
+  const highestPoint = dayPoints.length ? Math.max(...dayPoints.map((point) => point.elevationM)) : 0;
   const dayDistance = selectedDay ? dayDistanceKm(selectedDay) : 0;
   const rawDayProgress = matched && selectedDay ? matched.distanceKm - selectedDay.startDistanceKm : 0;
   const dayProgress = Math.max(0, Math.min(dayDistance, rawDayProgress));
@@ -374,10 +375,10 @@ export function CoastPathApp() {
             <section className="profile-card panel">
               <div className="panel-heading">
                 <div className="profile-heading-copy">
-                  <p className="eyebrow profile-day-line"><span><Mountain size={14} /> Day {selectedDay.order}</span><time dateTime={selectedDay.date || undefined}>{formatDate(selectedDay.date)}</time></p>
+                  <p className="eyebrow profile-day-line"><span>Day {selectedDay.order}</span><time dateTime={selectedDay.date || undefined}>{formatDate(selectedDay.date)}</time></p>
                   <h2>{selectedDay.startName} <ArrowRight /> {selectedDay.endName}</h2>
                 </div>
-                <div className="climb-summary"><span><ArrowUp /> {climbing.ascent.toLocaleString()} m</span><span><ArrowDown /> {climbing.descent.toLocaleString()} m</span></div>
+                <div className="climb-summary"><span><ArrowUp /> {climbing.ascent.toLocaleString()} m</span><span><ArrowDown /> {climbing.descent.toLocaleString()} m</span><span><Mountain /> {highestPoint.toLocaleString()} m</span></div>
               </div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
@@ -393,42 +394,33 @@ export function CoastPathApp() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </section>
-
-            <section className="track-day-picker">
-              <div className="day-picker"><label htmlFor="selected-day">Viewing</label><div className="day-picker-control">
+              <div className="profile-day-navigation" aria-label="Choose walking day">
                 <button onClick={() => selectAdjacentDay(-1)} disabled={selectedIndex <= 0} aria-label="Previous walking day"><ChevronLeft /></button>
-                <select id="selected-day" value={selectedDay.id} onChange={(event) => setSelectedId(event.target.value)}>
-                  {days.map((day) => <option key={day.id} value={day.id}>Day {day.order}: {day.startName} → {day.endName}</option>)}
+                <select aria-label="Walking day" value={selectedDay.id} onChange={(event) => setSelectedId(event.target.value)}>
+                  {days.map((day) => <option key={day.id} value={day.id}>Day {day.order} · {formatDate(day.date)}</option>)}
                 </select>
                 <button onClick={() => selectAdjacentDay(1)} disabled={selectedIndex < 0 || selectedIndex >= days.length - 1} aria-label="Next walking day"><ChevronRight /></button>
-              </div></div>
+              </div>
             </section>
 
             <section className="tracking-card panel">
               <div className="tracking-copy">
-                <p className="eyebrow"><Footprints size={14} /> Day {selectedDay.order} progress</p>
-                <h2>{gps ? `${formatKm(dayProgress)} walked` : `${formatKm(dayDistance)} planned`}</h2>
-                <p>{matched ? `${simulateGps ? `Simulated ${simulationLocationLabel} · ` : ""}${matched.distanceKm.toFixed(1)} km along the path · ${Math.round(matched.offRouteM)} m from the trail` : "Use your iPhone location to calculate progress along this section."}</p>
+                <div className="progress-heading"><div><p className="eyebrow"><Footprints size={14} /> Day progress</p><h2>{formatKm(dayProgress)} <small>of {formatKm(dayDistance)}</small></h2></div><strong>{Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}%</strong></div>
                 <div className="progress-track" aria-label={`${Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}% of this day completed`}><span style={{ width: `${dayDistance ? dayProgress / dayDistance * 100 : 0}%` }} /></div>
+                <div className="progress-details">
+                  <div><span>Whole plan</span><strong>{gps ? `${formatKm(planProgress)} / ${formatKm(plannedDistance)}` : formatKm(plannedDistance)}</strong><small>{gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining` : `${days.length} planned ${days.length === 1 ? "day" : "days"}`}</small></div>
+                  {matched && <div><span>Trail match</span><strong>{Math.round(matched.offRouteM)} m away</strong><small>{simulateGps ? `Simulated ${simulationLocationLabel}` : `iPhone accuracy ±${Math.round(gps?.accuracy ?? 0)} m`}</small></div>}
+                </div>
               </div>
             </section>
 
             {gpsError && <div className="alert"><CircleAlert size={18} /><span>{gpsError}</span></div>}
 
-            <section className="metric-grid" aria-label="Walking progress">
-              <Metric icon={<Footprints />} label="Today" value={gps ? formatKm(dayProgress) : "Start GPS"} sub={gps ? `${Math.max(0, dayDistance - dayProgress).toFixed(1)} km remaining` : formatKm(dayDistance) + " planned"} accent="coral" />
-              <Metric icon={<RouteIcon />} label="Whole plan" value={gps ? formatKm(planProgress) : formatKm(plannedDistance)} sub={gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining of ${plannedDistance.toFixed(1)} km` : `Total across ${days.length} planned ${days.length === 1 ? "day" : "days"}`} accent="green" />
-              <Metric icon={<Satellite />} label="Trail match" value={matched ? `${Math.round(matched.offRouteM)} m away` : "Not active"} sub={matched ? `${simulateGps ? "Simulated GPS" : `iPhone accuracy ±${Math.round(gps?.accuracy ?? 0)} m`}` : "Nearest point on the SWCP"} accent="blue" />
-            </section>
-
-            <aside className="day-summary panel">
-                <div className="summary-route">
+            <aside className="day-actions panel">
+                <div className="endpoint-links">
                   {startLocation && <a href={googleMapsUrl(startLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.startName} in Google Maps`}><MapPin />{selectedDay.startName}<ExternalLink /></a>}
-                  <div><i /><i /><i /></div>
                   {endLocation && <a href={googleMapsUrl(endLocation)} target="_blank" rel="noreferrer" aria-label={`Open ${selectedDay.endName} in Google Maps`}><MapPin />{selectedDay.endName}<ExternalLink /></a>}
                 </div>
-                <div className="summary-stats"><div><span>Distance</span><strong>{formatKm(dayDistance)}</strong></div><div><span>Highest point</span><strong>{Math.max(...dayPoints.map((point) => point.elevationM))} m</strong></div></div>
                 <button className="secondary-button" onClick={() => { openDayEditor("edit", selectedDay); setTab("plan"); }}><Pencil size={16} /> Edit this day</button>
             </aside>
           </>
@@ -455,8 +447,13 @@ export function CoastPathApp() {
               })}
             </div>
             {!days.length && <div className="empty-state"><MapPin /><h2>Plan your first walking day</h2><p>Pick a start and end point on the trail.</p><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add first day</button></div>}
+          </section>
+        )}
+
+        {tab === "locations" && (
+          <section className="workspace-section locations-workspace">
+            <div className="section-heading"><div><p className="eyebrow"><MapPin size={14} /> Planning points</p><h1>Locations</h1><p>Manage the named places used as walking-day start and end points.</p></div><button className="primary-button" onClick={() => openLocationEditor()}><Plus size={17} /> Add location</button></div>
             <section className="location-library panel">
-              <div className="location-library-heading"><div><p className="eyebrow"><MapPin size={14} /> Planning points</p><h2>Saved start and end locations</h2><p>Coordinates are stored at the nearest matched point on the GPX route.</p></div><button className="secondary-button" onClick={() => openLocationEditor()}><Plus size={17} /> Add location</button></div>
               <div className="location-list">
                 {route.checkpoints.map((location) => <article className="location-row" key={location.name}>
                   <span className="location-pin"><MapPin /></span>
@@ -467,18 +464,15 @@ export function CoastPathApp() {
                 </article>)}
               </div>
             </section>
-          </section>
-        )}
-
-        {tab === "data" && (
-          <section className="workspace-section">
-            <div className="section-heading"><div><p className="eyebrow"><RouteIcon size={14} /> Route library</p><h1>Offline trail data</h1><p>The route is stored in IndexedDB on this iPhone after the first visit.</p></div></div>
-            <div className="data-grid">
-              <article className="data-card panel"><span className="data-icon"><RouteIcon /></span><p className="eyebrow">Active route</p><h2>{route.name}</h2><dl><div><dt>Route length</dt><dd>{formatKm(route.officialDistanceKm, 0)}</dd></div><div><dt>Route points</dt><dd>{route.points.filter(Boolean).length.toLocaleString()}</dd></div><div><dt>Geometry</dt><dd>{route.geometrySource}</dd></div><div><dt>Elevation</dt><dd>{route.elevationSource}</dd></div></dl></article>
-              <article className="import-card panel"><span className="data-icon coral"><FileUp /></span><p className="eyebrow">Bring your own data</p><h2>Import a GPX route</h2><p>A GPX track with elevation replaces the bundled route and powers the profile, GPS progress and coordinate matching — entirely on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled SWCP route</button></article>
-              <article className="simulation-card panel"><span className="data-icon blue"><Satellite /></span><p className="eyebrow">Testing tool</p><h2>GPS simulation</h2><p>Use an iPhone-like test reading about 3 km beyond Lizard Point, or after the start when that location is not present. It uses the same matching and progress calculations as your real location.</p><label className="simulation-toggle route-simulation-toggle"><input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View on Track screen</button>}</article>
-            </div>
-            <div className="offline-explainer"><CloudOff /><div><strong>Bundled Mousehole–Falmouth data</strong><p>The default route is extracted from the supplied elevation GPX and contains {route.points.filter(Boolean).length.toLocaleString()} points with GPX elevation values. Only the Mousehole to Falmouth section is stored in the app.</p></div></div>
+            <article className="simulation-card panel locations-simulation"><div><p className="eyebrow"><Satellite size={14} /> Testing</p><h2>Simulated GPS</h2><p>Test the live progress display with an iPhone-like reading about 3 km beyond Lizard Point.</p></div><label className="simulation-toggle"><input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View Track</button>}</article>
+            <details className="advanced-route panel">
+              <summary><span><RouteIcon /> Route data &amp; GPX</span><small>Import, restore or inspect the offline trail</small></summary>
+              <div className="advanced-route-content">
+                <div className="route-facts"><div><span>Active route</span><strong>{route.name}</strong></div><div><span>Length</span><strong>{formatKm(route.officialDistanceKm)}</strong></div><div><span>Points</span><strong>{route.points.filter(Boolean).length.toLocaleString()}</strong></div><div><span>Elevation</span><strong>{route.elevationSource}</strong></div></div>
+                <div className="route-import"><p>A GPX track with elevation replaces the bundled route on this device.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => handleImport(event.target.files?.[0])} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Mousehole–Falmouth route</button></div>
+                <div className="offline-explainer"><CloudOff /><div><strong>Available offline</strong><p>The bundled route and its {route.points.filter(Boolean).length.toLocaleString()} elevation points are stored with the app.</p></div></div>
+              </div>
+            </details>
           </section>
         )}
       </main>
@@ -486,7 +480,7 @@ export function CoastPathApp() {
       <nav className="bottom-nav" aria-label="Main navigation">
         <NavButton active={tab === "track"} onClick={() => setTab("track")} icon={<Navigation />} label="Track" />
         <NavButton active={tab === "plan"} onClick={() => setTab("plan")} icon={<CalendarDays />} label="Plan" />
-        <NavButton active={tab === "data"} onClick={() => setTab("data")} icon={<RouteIcon />} label="Route" />
+        <NavButton active={tab === "locations"} onClick={() => setTab("locations")} icon={<MapPin />} label="Locations" />
       </nav>
 
       {editor && route && (
@@ -524,10 +518,6 @@ export function CoastPathApp() {
       {notice && <button className="toast" onClick={() => setNotice("")}><Check size={17} /><span>{notice}</span><X size={15} /></button>}
     </div>
   );
-}
-
-function Metric({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string; sub: string; accent: string }) {
-  return <article className="metric-card"><span className={`metric-icon ${accent}`}>{icon}</span><div><p>{label}</p><strong>{value}</strong><small>{sub}</small></div></article>;
 }
 
 function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {

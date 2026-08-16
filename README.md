@@ -9,6 +9,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Start and end entry by named checkpoint or latitude/longitude with nearest-path matching
 - Custom names for every start and end location, used throughout the app
 - Editable saved-location list with coordinate-to-GPX matching
+- Dedicated Locations screen for place editing, Google Maps verification, GPS simulation and advanced GPX tools
 - Elevation profile for each selected day
 - Elevation profile positioned first beneath the Track screen top bar, titled with the selected start and end points and labelled with its day and date
 - Automatic phone-landscape profile mode that fills the available screen and restores the normal interface in portrait
@@ -53,9 +54,9 @@ The bundled route is compiled into the app, so startup never waits for a route d
 
 The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Mousehole-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 4,685 points over approximately 105.5 km with the supplied elevation values. Mousehole to Penzance accounts for approximately 5.5 km of this route.
 
-The seven default planning locations are Mousehole, Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved with OpenStreetMap/Nominatim and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations in Plan; those changes are stored locally in IndexedDB.
+The seven default planning locations are Mousehole, Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved with OpenStreetMap/Nominatim and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations on the dedicated **Locations** screen; those changes are stored locally in IndexedDB.
 
-The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the app’s **Route** screen. To regenerate the bundled segment from the supplied full-route GPX:
+The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the expandable **Route data & GPX** area on the **Locations** screen. To regenerate the bundled segment from the supplied full-route GPX:
 
 ```bash
 npm run route:segment -- path/to/full-route.gpx public/data/swcp-route.json
