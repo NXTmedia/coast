@@ -49,6 +49,7 @@ export function CoastPathApp() {
   const [loadingError, setLoadingError] = useState("");
   const [gps, setGps] = useState<GpsReading | null>(null);
   const [simulateGps, setSimulateGps] = useState(false);
+  const [trackGps, setTrackGps] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [watchId, setWatchId] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
@@ -176,6 +177,7 @@ export function CoastPathApp() {
     }
     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     setWatchId(null);
+    setTrackGps(false);
     const simulated = route ? simulatedGpsNearCheckpoint(route) : null;
     if (!simulated) {
       setGpsError("A simulated location could not be created for this route.");
@@ -186,6 +188,19 @@ export function CoastPathApp() {
     const simulatedMatch = nearestRoutePosition(route!, simulated.longitude, simulated.latitude);
     const containingDayId = simulatedMatch ? dayIdContainingDistance(days, simulatedMatch.distanceKm) : undefined;
     if (containingDayId) setSelectedId(containingDayId);
+  };
+
+  const toggleGpsTracking = () => {
+    setGpsError("");
+    if (trackGps) {
+      setTrackGps(false);
+      return;
+    }
+    if (simulateGps) {
+      setSimulateGps(false);
+      setGps(null);
+    }
+    setTrackGps(true);
   };
 
   const openNewDay = () => {
@@ -493,6 +508,18 @@ export function CoastPathApp() {
               </div>
             </section>
             <article className="simulation-card panel locations-simulation"><div><p className="eyebrow"><Satellite size={14} /> Testing</p><h2>Simulated GPS</h2><p>Test the live progress display with an iPhone-like reading about 3 km beyond Lizard Point.</p></div><label className="simulation-toggle"><input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View Track</button>}</article>
+            <article className="gps-check-card panel locations-gps">
+              <div><p className="eyebrow"><LocateFixed size={14} /> Location services</p><h2>Check your GPS</h2><p>Show the coordinates supplied by your phone. Switch this on, then tap the location button at the top right.</p></div>
+              <label className="simulation-toggle"><input type="checkbox" role="switch" checked={trackGps} onChange={toggleGpsTracking} /><span className="toggle-track"><i /></span><span><strong>Track GPS</strong><small>{trackGps ? "Coordinate display is on" : "Coordinate display is off"}</small></span></label>
+              {trackGps && <div className="gps-coordinate-display" aria-live="polite">
+                {watchId !== null && gps && !simulateGps ? <>
+                  <div><span>Latitude</span><strong>{gps.latitude.toFixed(6)}</strong></div>
+                  <div><span>Longitude</span><strong>{gps.longitude.toFixed(6)}</strong></div>
+                  <p><LocateFixed size={15} /> Accuracy ±{Math.round(gps.accuracy)} metres</p>
+                </> : <p><LocateFixed size={15} /> {watchId !== null ? "Waiting for a GPS reading…" : "Tap the location button at the top right to start GPS."}</p>}
+              </div>}
+              {trackGps && gpsError && <div className="alert gps-check-alert"><CircleAlert size={18} /><span>{gpsError}</span></div>}
+            </article>
             <details className="advanced-route panel">
               <summary><span><RouteIcon /> Route data &amp; GPX</span><small>Import, restore or inspect the offline trail</small></summary>
               <div className="advanced-route-content">

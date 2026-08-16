@@ -44,6 +44,13 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /watchPosition/);
   assert.match(app, /Simulate GPS/);
   assert.match(app, /simulatedGpsNearCheckpoint/);
+  assert.match(app, /<strong>Track GPS<\/strong>/);
+  assert.match(app, /gps\.latitude\.toFixed\(6\)/);
+  assert.match(app, /gps\.longitude\.toFixed\(6\)/);
+  assert.match(app, /Accuracy ±\{Math\.round\(gps\.accuracy\)\} metres/);
+  assert.match(app, /Tap the location button at the top right to start GPS/);
+  assert.match(app, /setTrackGps\(false\)/);
+  assert.match(styles, /\.gps-coordinate-display/);
   assert.match(app, /ReferenceDot/);
   assert.match(app, /You are here/);
   assert.match(app, /Previous walking day/);
