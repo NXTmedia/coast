@@ -6,10 +6,12 @@ const output = process.argv[3] ?? "public/data/swcp-route.json";
 if (!input) throw new Error("Usage: npm run route:segment -- source.gpx [output.json]");
 
 // Place coordinates resolved from OpenStreetMap/Nominatim, then snapped to the GPX below.
-const startSeed = { name: "Penzance", lat: 50.1194794, lng: -5.5352463 };
+const startSeed = { name: "Mousehole", lat: 50.0839943, lng: -5.5389614 };
+const penzanceSeed = { name: "Penzance", lat: 50.1194794, lng: -5.5352463 };
 const endSeed = { name: "Falmouth", lat: 50.1552197, lng: -5.0688262 };
 const checkpointSeeds = [
   startSeed,
+  penzanceSeed,
   { name: "Porthleven", lat: 50.0849174, lng: -5.3166558 },
   { name: "Lizard Point", lat: 49.9588849, lng: -5.2063788 },
   { name: "Coverack", lat: 50.0224895, lng: -5.0971985 },
@@ -56,9 +58,9 @@ const nearest = (seed) => indexed.reduce((best, candidate) => {
 const start = nearest(startSeed);
 const end = nearest(endSeed);
 if (start.trackIndex > end.trackIndex || (start.trackIndex === end.trackIndex && start.pointIndex >= end.pointIndex)) {
-  throw new Error("The requested segment is not ordered from Penzance to Falmouth in this GPX.");
+  throw new Error("The requested segment is not ordered from Mousehole to Falmouth in this GPX.");
 }
-if (start.distance > 0.5 || end.distance > 0.5) throw new Error("The GPX does not pass close enough to Penzance and Falmouth.");
+if (start.distance > 0.5 || end.distance > 0.5) throw new Error("The GPX does not pass close enough to Mousehole and Falmouth.");
 
 const selectedTracks = tracks
   .slice(start.trackIndex, end.trackIndex + 1)
@@ -93,12 +95,12 @@ const checkpoints = checkpointSeeds.map((seed) => {
 }).sort((a, b) => a.distanceKm - b.distanceKm);
 
 const route = {
-  id: "swcp-gpx-penzance-falmouth-2026-04",
-  name: "South West Coast Path: Penzance to Falmouth",
+  id: "swcp-gpx-mousehole-falmouth-2026-04",
+  name: "South West Coast Path: Mousehole to Falmouth",
   officialDistanceKm: Number(cumulative.toFixed(1)),
   generatedAt: new Date().toISOString(),
   elevationSource: "Supplied GPX elevation (GPS Visualizer)",
-  geometrySource: "Supplied South West Coast Path GPX, Penzance to Falmouth",
+  geometrySource: "Supplied South West Coast Path GPX, Mousehole to Falmouth",
   points: routePoints,
   checkpoints,
 };

@@ -13,26 +13,27 @@ On startup, the app selects the walking day dated today. If no day matches today
 - `app/lib/days.ts` keeps itinerary order contiguous after additions and deletions.
 - `app/lib/planning.ts` contains planned-distance, progress, naming and date-selection rules.
 - `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and Google Maps link generation.
-- `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Penzance-to-Falmouth GPX section.
+- `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Mousehole-to-Falmouth GPX section.
 - `public/sw.js` caches the application shell and bundled route for offline startup.
 - `tests/` contains automated tests for the important planning, route, GPS, persistence and PWA behaviours.
 
 ## Route and elevation data
 
-The bundled route is stored in `public/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Penzance to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
+The bundled route is stored in `public/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Mousehole to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
 
-The resulting route contains 4,508 points, approximately 100.1 km of path and the supplied elevation values. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX on the Route screen replaces both geometry and elevation locally.
+The resulting route contains 4,685 points, approximately 105.5 km of path and the supplied elevation values. The added Mousehole-to-Penzance section is approximately 5.5 km. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX on the Route screen replaces both geometry and elevation locally.
 
-The six default planning locations were geocoded with OpenStreetMap/Nominatim and snapped to the nearest supplied GPX point:
+The seven default planning locations were geocoded with OpenStreetMap/Nominatim and snapped to the nearest supplied GPX point:
 
 | Location | Matched latitude | Matched longitude | Distance along route |
 |---|---:|---:|---:|
-| Penzance | 50.119316 | -5.533253 | 0.0 km |
-| Porthleven | 50.085023 | -5.316053 | 22.6 km |
-| Lizard Point | 49.959480 | -5.206519 | 45.2 km |
-| Coverack | 50.023079 | -5.096928 | 62.3 km |
-| Helford | 50.093298 | -5.135753 | 83.6 km |
-| Falmouth | 50.155225 | -5.068876 | 100.1 km |
+| Mousehole | 50.083671 | -5.538764 | 0.0 km |
+| Penzance | 50.119316 | -5.533253 | 5.5 km |
+| Porthleven | 50.085023 | -5.316053 | 28.1 km |
+| Lizard Point | 49.959480 | -5.206519 | 50.7 km |
+| Coverack | 50.023079 | -5.096928 | 67.8 km |
+| Helford | 50.093298 | -5.135753 | 89.1 km |
+| Falmouth | 50.155225 | -5.068876 | 105.5 km |
 
 The Plan screen edits the active route's checkpoint list. New or edited place coordinates are projected to the nearest GPX point before being saved. At least two locations are retained so a walking day can always have a start and end.
 
@@ -55,7 +56,7 @@ Track-screen endpoint links use the user's entered coordinate when one exists; o
 
 ## Persistence and offline operation
 
-Dexie stores the active route (including its editable saved locations), walking days and settings in the browser's IndexedDB database named `coastline-swcp`. Walking days use stable IDs and a numeric order that is repaired on every load and after changes. When the old bundled full-path route is detected, compatible Penzance-to-Falmouth days are rematched by their endpoint coordinates; the former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
+Dexie stores the active route (including its editable saved locations), walking days and settings in the browser's IndexedDB database named `coastline-swcp`. Walking days use stable IDs and a numeric order that is repaired on every load and after changes. When an older bundled route is detected, compatible walking days are rematched by their endpoint coordinates. Upgrading from the Penzance-to-Falmouth bundle also rematches custom saved locations and inserts Mousehole, rather than discarding device-local planning changes. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
 The service worker caches the application shell, manifest and bundled route. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening Google Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
 

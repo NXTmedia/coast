@@ -97,6 +97,14 @@ export function migrateDaysToRoute(days: WalkingDay[], sourceRoute: TrailRoute, 
   });
 }
 
+export function migrateCheckpointsToRoute(checkpoints: Checkpoint[], targetRoute: TrailRoute, maximumOffsetM = 5000): Checkpoint[] {
+  return checkpoints.flatMap((checkpoint) => {
+    const match = nearestRoutePosition(targetRoute, checkpoint.lng, checkpoint.lat);
+    if (!match || match.offRouteM > maximumOffsetM) return [];
+    return [{ name: checkpoint.name, lng: match.lng, lat: match.lat, distanceKm: match.distanceKm }];
+  }).sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
 export function ascentDescent(points: RoutePoint[]) {
   let ascent = 0; let descent = 0;
   for (let index = 1; index < points.length; index += 1) {

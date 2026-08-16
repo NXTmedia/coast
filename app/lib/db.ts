@@ -4,7 +4,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { Checkpoint, TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../../public/data/swcp-route.json";
 import { normalizeDayOrders, removeLegacyStarterDays } from "./days";
-import { migrateDaysToRoute } from "./route";
+import { migrateCheckpointsToRoute, migrateDaysToRoute } from "./route";
 
 type StoredRoute = { key: string; data: TrailRoute };
 type StoredSetting = { key: string; value: string };
@@ -60,9 +60,17 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   let storageReady = true;
   try {
     const storedRoute = (await withTimeout(db.routes.get("active")))?.data;
-    if (storedRoute?.id.startsWith("swcp-osm-") && storedRoute.id !== bundledRoute.id) {
+    const isPreviousBundledRoute = storedRoute && storedRoute.id !== bundledRoute.id
+      && (storedRoute.id.startsWith("swcp-osm-") || storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04");
+    if (isPreviousBundledRoute) {
       previousBundledRoute = storedRoute;
-      route = bundledRoute;
+      if (storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04") {
+        const migrated = migrateCheckpointsToRoute(storedRoute.checkpoints, bundledRoute);
+        const mousehole = bundledRoute.checkpoints.find((checkpoint) => checkpoint.name === "Mousehole");
+        route = { ...bundledRoute, checkpoints: [mousehole, ...migrated].filter(Boolean) as Checkpoint[] };
+      } else {
+        route = bundledRoute;
+      }
     } else {
       route = storedRoute ?? bundledRoute;
     }
@@ -76,7 +84,7 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   } catch {
     storageReady = false;
   }
-  if (previousBundledRoute && days.length) days = migrateDaysToRoute(days, previousBundledRoute, bundledRoute);
+  if (previousBundledRoute && days.length) days = migrateDaysToRoute(days, previousBundledRoute, route);
   if (route.id === bundledRoute.id) days = removeLegacyStarterDays(days);
   if (!days.length) days = defaultDays(route);
   days = normalizeDayOrders(days);

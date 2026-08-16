@@ -4,7 +4,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 
 ## What works
 
-- A Penzance-to-Falmouth starter day, plus create/edit/delete planning tools
+- A Mousehole-to-Falmouth starter day, plus create/edit/delete planning tools
 - One-tap “start where the previous day ended” planning
 - Start and end entry by named checkpoint or latitude/longitude with nearest-path matching
 - Custom names for every start and end location, used throughout the app
@@ -49,9 +49,9 @@ The bundled route is compiled into the app, so startup never waits for a route d
 
 ## Trail data
 
-The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Penzance-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 4,508 points over approximately 100.1 km with the supplied elevation values.
+The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Mousehole-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 4,685 points over approximately 105.5 km with the supplied elevation values. Mousehole to Penzance accounts for approximately 5.5 km of this route.
 
-The six default planning locations are Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved with OpenStreetMap/Nominatim and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations in Plan; those changes are stored locally in IndexedDB.
+The seven default planning locations are Mousehole, Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved with OpenStreetMap/Nominatim and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations in Plan; those changes are stored locally in IndexedDB.
 
 The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the app’s **Route** screen. To regenerate the bundled segment from the supplied full-route GPX:
 

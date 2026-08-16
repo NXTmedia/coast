@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ascentDescent, googleMapsUrl, migrateDaysToRoute, nearestRoutePosition,
+  ascentDescent, googleMapsUrl, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition,
   pointsForDay, simulatedGpsNearCheckpoint,
 } from "../app/lib/route.ts";
 
@@ -59,6 +59,15 @@ test("saved walking days migrate from the old bundled route by endpoint coordina
   assert.equal(migrated.length, 1);
   assert.ok(Math.abs(migrated[0].startDistanceKm) < 0.01);
   assert.ok(Math.abs(migrated[0].endDistanceKm - 20) < 0.01);
+});
+
+test("saved locations migrate onto an extended bundled route", () => {
+  const checkpoints = [{ name: "Custom harbour", lng: -3.95, lat: 50.001, distanceKm: 5 }];
+  const migrated = migrateCheckpointsToRoute(checkpoints, route);
+  assert.equal(migrated.length, 1);
+  assert.equal(migrated[0].name, "Custom harbour");
+  assert.ok(Math.abs(migrated[0].distanceKm - 5) < 0.01);
+  assert.ok(migrated[0].lat < 50.00001);
 });
 
 test("Google Maps links contain the exact endpoint coordinates", () => {

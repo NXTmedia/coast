@@ -16,11 +16,12 @@ test("ships the PWA and offline route dataset", async () => {
   assert.match(serviceWorker, /PREPARE_OFFLINE/);
   assert.match(serviceWorker, /navigationResponse/);
   assert.doesNotMatch(serviceWorker, /return cached \?\? network/);
-  assert.ok(route.points.filter(Boolean).length > 4000);
-  assert.ok(route.officialDistanceKm > 95 && route.officialDistanceKm < 105);
+  assert.ok(route.points.filter(Boolean).length > 4600);
+  assert.ok(route.officialDistanceKm > 105 && route.officialDistanceKm < 106);
   assert.match(route.geometrySource, /Supplied South West Coast Path GPX/);
   assert.match(route.elevationSource, /Supplied GPX elevation/);
-  assert.deepEqual(route.checkpoints.map((point) => point.name), ["Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
+  assert.deepEqual(route.checkpoints.map((point) => point.name), ["Mousehole", "Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
+  assert.ok(route.checkpoints[1].distanceKm > 5 && route.checkpoints[1].distanceKm < 6);
 });
 
 test("includes the requested offline-first features", async () => {
