@@ -35,6 +35,18 @@ export function localDateKey(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function dateKeyAfter(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export function fillWalkingDayDates(days: WalkingDay[], startDate: string): WalkingDay[] {
+  return days.map((day) => ({ ...day, date: dateKeyAfter(startDate, day.order - 1) }));
+}
+
 export function dayIdForDate(days: WalkingDay[], dateKey: string): string {
   return days.find((day) => day.date === dateKey)?.id ?? days[0]?.id ?? "";
 }

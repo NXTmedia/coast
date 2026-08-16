@@ -17,6 +17,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Nearest-point matching and progress for the selected day and total planned sections
 - Start and end location links that open their exact coordinates in Google Maps
 - Previous/next day controls and automatic selection of today's dated walk
+- Consecutive date filling from Day 1's start date, with every later date remaining individually editable
 - Start/end verification links to the nearest matched path coordinates while editing
 - Device-local persistence in IndexedDB (Dexie)
 - GPX import, including elevation values where the GPX contains them

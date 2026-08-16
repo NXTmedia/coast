@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   copyPreviousDayEnd,
+  dateKeyAfter,
   dayIdContainingDistance,
   dayIdForDate,
   dayDistanceKm,
+  fillWalkingDayDates,
   localDateKey,
   plannedProgressKm,
   renameDayLocation,
@@ -74,6 +76,18 @@ test("today's dated walking day is selected when the app opens", () => {
   assert.equal(dayIdForDate(days, "2026-08-16"), "today");
   assert.equal(dayIdForDate(days, "2026-08-20"), "first");
   assert.equal(dayIdForDate([], "2026-08-16"), "");
+});
+
+test("a start date fills consecutive walking-day dates across month and year boundaries", () => {
+  const days = [
+    day({ id: "first", order: 1 }),
+    day({ id: "second", order: 2, date: "2028-05-12" }),
+    day({ id: "third", order: 3 }),
+  ];
+  const scheduled = fillWalkingDayDates(days, "2026-12-30");
+  assert.deepEqual(scheduled.map(({ date }) => date), ["2026-12-30", "2026-12-31", "2027-01-01"]);
+  assert.equal(dateKeyAfter("2028-02-28", 1), "2028-02-29");
+  assert.equal(days[1].date, "2028-05-12");
 });
 
 test("a GPS position selects the planned day containing that trail distance", () => {

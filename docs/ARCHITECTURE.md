@@ -6,6 +6,8 @@ Coastline is a mobile-first, offline-first planner and progress tracker for walk
 
 On startup, the app selects the walking day dated today. If no day matches today's local date, it selects the first planned day. The Track screen leads with the selected day's elevation profile immediately below the top bar. The profile title is the walk's start and end locations, with the day number and date above it. A single compact selector beneath the chart provides previous/next itinerary controls without repeating the route title or date.
 
+When Day 1 is assigned or moved to a new start date, the app fills every walking day with consecutive calendar dates. Dates on Days 2 onward can then be edited independently without rescheduling the rest of the itinerary. A newly appended day inherits the calendar day after the preceding dated day.
+
 ## Application structure
 
 - `app/components/CoastPathApp.tsx` owns the main React interface and coordinates loading, editing, GPS, simulation and navigation.

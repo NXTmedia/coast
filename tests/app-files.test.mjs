@@ -42,6 +42,10 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /Previous walking day/);
   assert.match(app, /Next walking day/);
   assert.match(app, /dayIdForDate\(loadedDays, localDateKey\(\)\)/);
+  assert.match(app, /savedDay\.order === 1/);
+  assert.match(app, /fillWalkingDayDates\(updated, savedDay\.date\)/);
+  assert.match(app, /Start date \(fills following days\)/);
+  assert.match(app, /dateKeyAfter\(previous\.date, 1\)/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /Start location name/);
   assert.match(app, /End location name/);

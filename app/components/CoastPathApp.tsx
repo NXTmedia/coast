@@ -14,7 +14,7 @@ import { db, loadInitialData, replaceRoute, saveRouteCheckpoints } from "../lib/
 import { normalizeDayOrders } from "../lib/days";
 import {
   copyPreviousDayEnd, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
-  localDateKey, plannedProgressKm, renameDayLocation, totalPlannedDistanceKm,
+  dateKeyAfter, fillWalkingDayDates, localDateKey, plannedProgressKm, renameDayLocation, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
   ascentDescent, googleMapsUrl, importGpx, nearestRoutePosition, pointsForDay,
@@ -169,7 +169,7 @@ export function CoastPathApp() {
       : route.checkpoints[0];
     const end = route.checkpoints.find((point) => point.distanceKm > start.distanceKm + 1) ?? route.checkpoints.at(-1)!;
     openDayEditor("new", {
-      id: crypto.randomUUID(), order: days.length + 1, date: "",
+      id: crypto.randomUUID(), order: days.length + 1, date: previous?.date ? dateKeyAfter(previous.date, 1) : "",
       startName: start.name, endName: end.name,
       startDistanceKm: start.distanceKm, endDistanceKm: end.distanceKm,
     });
@@ -231,9 +231,13 @@ export function CoastPathApp() {
     if (!savedDay.startName || !savedDay.endName) {
       setNotice("Give both the start and end locations a name."); return;
     }
-    const updated = normalizeDayOrders([...days.filter((day) => day.id !== savedDay.id), savedDay]);
+    const originalDay = days.find((day) => day.id === savedDay.id);
+    const shouldFillDates = savedDay.order === 1 && Boolean(savedDay.date) && savedDay.date !== originalDay?.date;
+    let updated = normalizeDayOrders([...days.filter((day) => day.id !== savedDay.id), savedDay]);
+    if (shouldFillDates) updated = fillWalkingDayDates(updated, savedDay.date);
     await db.days.bulkPut(updated);
-    setDays(updated); setSelectedId(savedDay.id); setEditor(null); setNotice("Walking day saved offline.");
+    setDays(updated); setSelectedId(savedDay.id); setEditor(null);
+    setNotice(shouldFillDates ? "Start date saved and all walking-day dates filled." : "Walking day saved offline.");
   };
 
   const deleteDay = async (day: WalkingDay) => {
@@ -489,7 +493,7 @@ export function CoastPathApp() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditor(null); }}>
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Day {editor.day.order}</p><h2 id="editor-title">{editor.mode === "new" ? "Plan a walking day" : "Edit walking day"}</h2></div><button className="close-button" onClick={() => setEditor(null)} aria-label="Close editor"><X /></button></div>
-            <label>Date (optional)<input type="date" value={editor.day.date} onChange={(event) => setEditor({ ...editor, day: { ...editor.day, date: event.target.value } })} /></label>
+            <label>{editor.day.order === 1 ? "Start date (fills following days)" : "Date"}<input type="date" value={editor.day.date} onChange={(event) => setEditor({ ...editor, day: { ...editor.day, date: event.target.value } })} /></label>
             <label>Start point<select value={editor.day.startName} onChange={(event) => chooseCheckpoint("start", event.target.value)}>{!route.checkpoints.some((point) => point.name === editor.day.startName) && <option value={editor.day.startName}>{editor.day.startName}</option>}{route.checkpoints.map((point) => <option key={`s-${point.name}`} value={point.name}>{point.name} · {point.distanceKm.toFixed(1)} km</option>)}</select></label>
             <CoordinateMatcher field="start" drafts={coordinateDrafts} setDrafts={setCoordinateDrafts} message={coordinateMessages.start} onMatch={() => matchCoordinates("start")} />
             <label>Start location name<input type="text" placeholder="For example: The harbour steps" value={editor.day.startName} onChange={(event) => setEditor({ ...editor, day: renameDayLocation(editor.day, "start", event.target.value) })} /></label>
