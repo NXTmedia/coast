@@ -1,6 +1,6 @@
-const VERSION = "coastline-v28";
+const VERSION = "coastline-v29";
 const SHELL_CACHE = `${VERSION}-shell`;
-const SHELL = ["/", "/manifest.webmanifest"];
+const SHELL = ["/", "/manifest.json"];
 const READY_MARKER = "/__coastline_offline_ready__";
 
 function shellAssetsFromHtml(html) {
@@ -44,7 +44,7 @@ function hasExpectedContentType(asset, contentType) {
   const pathname = new URL(asset, self.location.origin).pathname;
   if (/\.m?js$/.test(pathname)) return contentType.includes("javascript");
   if (pathname.endsWith(".css")) return contentType.includes("css");
-  if (pathname.endsWith(".webmanifest")) return contentType.includes("manifest") || contentType.includes("json");
+  if (pathname.endsWith("manifest.json")) return contentType.includes("manifest") || contentType.includes("json");
   return true;
 }
 
@@ -164,6 +164,6 @@ self.addEventListener("fetch", (event) => {
     || request.destination === "style"
     || request.destination === "font"
     || request.destination === "image"
-    || url.pathname === "/manifest.webmanifest";
+    || url.pathname === "/manifest.json";
   if (cacheableAsset) event.respondWith(cacheFirst(request, SHELL_CACHE));
 });

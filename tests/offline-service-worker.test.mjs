@@ -63,7 +63,7 @@ function response(body, contentType, status = 200) {
 function completeNetwork() {
   return new Map([
     ["/", response('<!doctype html><link rel="stylesheet" href="/styles.css"><script type="module" src="/entry.js"></script>', "text/html")],
-    ["/manifest.webmanifest", response("{}", "application/manifest+json")],
+    ["/manifest.json", response("{}", "application/manifest+json")],
     ["/styles.css", response('@import "./theme.css"; body { background: url("/coast.png"); }', "text/css")],
     ["/theme.css", response("body { color: green; }", "text/css")],
     ["/coast.png", response("image", "image/png")],
@@ -128,7 +128,7 @@ test("offline preparation caches the page, route and transitive app assets befor
   assert.equal(await harness.context.cacheShell(), true);
 
   const cache = await harness.caches.open(shellCacheName);
-  for (const asset of ["/", "/manifest.webmanifest", "/styles.css", "/theme.css", "/coast.png", "/entry.js", "/chunk.js"]) {
+  for (const asset of ["/", "/manifest.json", "/styles.css", "/theme.css", "/coast.png", "/entry.js", "/chunk.js"]) {
     assert.ok(await cache.match(asset), `${asset} should be available offline`);
   }
   assert.ok(await cache.match("/__coastline_offline_ready__"));

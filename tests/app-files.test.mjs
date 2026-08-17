@@ -6,7 +6,7 @@ const root = new URL("../", import.meta.url);
 
 test("ships the PWA and offline route dataset", async () => {
   const [manifest, serviceWorker, route, index] = await Promise.all([
-    readFile(new URL("public/manifest.webmanifest", root), "utf8").then(JSON.parse),
+    readFile(new URL("public/manifest.json", root), "utf8").then(JSON.parse),
     readFile(new URL("public/sw.js", root), "utf8"),
     readFile(new URL("app/data/swcp-route.json", root), "utf8").then(JSON.parse),
     readFile(new URL("index.html", root), "utf8"),
@@ -61,6 +61,8 @@ test("builds as a static Vite app configured for Netlify", async () => {
   assert.match(netlify, /publish = "dist"/);
   assert.match(netlify, /to = "\/index\.html"/);
   assert.match(netlify, /for = "\/sw\.js"/);
+  assert.match(netlify, /for = "\/manifest\.json"/);
+  assert.match(netlify, /Content-Type = "application\/manifest\+json; charset=utf-8"/);
   await Promise.all([
     "app/layout.tsx", "app/page.tsx", "build/sites-vite-plugin.ts", "next-env.d.ts",
     "next.config.ts", "worker/index.ts", ".openai/hosting.json",
@@ -108,6 +110,9 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /window\.clearTimeout\(timeout\)/);
   assert.match(app, /withClientTimeout\(navigator\.serviceWorker\.register\("\/sw\.js"\), 8000\)/);
   assert.match(app, /handleOnline = \(\) => \{ setOnline\(true\); refreshOfflineState\(\); \}/);
+  assert.match(app, /setOfflineState\(ready \? "ready" : "limited"\)/);
+  assert.doesNotMatch(app, /current === "limited" \? "limited"/);
+  assert.match(app, /controllerchange/);
   assert.match(app, /navigator\.serviceWorker\.controller \? "ready" : "limited"/);
   assert.match(app, /Start where the previous day ended/);
   assert.match(app, /<label>Start point<select/);

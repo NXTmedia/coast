@@ -52,6 +52,7 @@ export function CoastPathApp() {
   const [watchId, setWatchId] = useState<number | null>(null);
   const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [offlineState, setOfflineState] = useState<OfflineState>("preparing");
+  const [persistentStorageReady, setPersistentStorageReady] = useState(true);
   const [editor, setEditor] = useState<EditorState>(null);
   const [locationEditor, setLocationEditor] = useState<LocationEditorState>(null);
   const [pendingDayDeleteId, setPendingDayDeleteId] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function CoastPathApp() {
     loadInitialData()
       .then(({ route: loadedRoute, days: loadedDays, planStartDate: loadedStartDate, storageReady }) => {
         setRoute(loadedRoute); setDays(loadedDays); setPlanStartDate(loadedStartDate); setSelectedId(dayIdForDate(loadedDays, localDateKey()));
-        if (!storageReady) setOfflineState("limited");
+        setPersistentStorageReady(storageReady);
       })
       .catch((error) => setLoadingError(error instanceof Error ? error.message : "Unable to load the trail."));
     const isLocalDevelopment = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
@@ -79,14 +80,16 @@ export function CoastPathApp() {
         return;
       }
       setOfflineState("preparing");
-      prepareOfflineApp().then((ready) => setOfflineState((current) => current === "limited" ? "limited" : ready ? "ready" : "limited"));
+      prepareOfflineApp().then((ready) => setOfflineState(ready ? "ready" : "limited"));
     };
     const handleOnline = () => { setOnline(true); refreshOfflineState(); };
     const handleOffline = () => { setOnline(false); setOfflineState(navigator.serviceWorker.controller ? "ready" : "limited"); };
     const handleInstall = (event: Event) => { event.preventDefault(); setInstallPrompt(event); };
+    const handleControllerChange = () => { if (navigator.onLine) refreshOfflineState(); };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("beforeinstallprompt", handleInstall);
+    navigator.serviceWorker?.addEventListener("controllerchange", handleControllerChange);
     if ("serviceWorker" in navigator) {
       if (isLocalDevelopment) {
         // A development service worker can cache stale Vite module URLs after HMR.
@@ -103,6 +106,7 @@ export function CoastPathApp() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("beforeinstallprompt", handleInstall);
+      navigator.serviceWorker?.removeEventListener("controllerchange", handleControllerChange);
     };
   }, []);
 
@@ -444,9 +448,9 @@ export function CoastPathApp() {
           <span><strong>Coastline</strong><small>South West Coast Path</small></span>
         </button>
         <div className="topbar-actions">
-          <span className={`status-pill ${!online ? "offline" : offlineState}`}>
-            {!online ? <CloudOff size={14} /> : offlineState === "ready" ? <Check size={14} /> : <Download size={14} />}
-            {!online ? "Working offline" : offlineState === "ready" ? "Offline ready" : offlineState === "preparing" ? "Preparing offline" : "Offline setup incomplete"}
+          <span className={`status-pill ${!online ? "offline" : offlineState === "ready" && persistentStorageReady ? "ready" : offlineState}`}>
+            {!online ? <CloudOff size={14} /> : offlineState === "ready" && persistentStorageReady ? <Check size={14} /> : <Download size={14} />}
+            {!online ? "Working offline" : offlineState === "ready" && persistentStorageReady ? "Offline ready" : offlineState === "preparing" ? "Preparing offline" : "Offline setup incomplete"}
           </span>
           <button className={`header-location-button ${watchId !== null ? "active" : ""}`} onClick={startGps} aria-label={watchId !== null ? "Stop using my location" : "Use my location"}>
             <LocateFixed size={17} /><span>{watchId !== null ? "Stop location" : "Use my location"}</span>
@@ -699,23 +703,28 @@ function ElevationTooltip({ active, payload }: { active?: boolean; payload?: Arr
 }
 
 async function prepareOfflineApp(): Promise<boolean> {
-  try {
-    const registration = await withClientTimeout(navigator.serviceWorker.register("/sw.js"), 8000);
-    const readyRegistration = await withClientTimeout(navigator.serviceWorker.ready, 8000);
-    const worker = navigator.serviceWorker.controller ?? readyRegistration.active ?? registration.active;
-    if (!worker) return false;
-    return await new Promise<boolean>((resolve) => {
-      const channel = new MessageChannel();
-      const timeout = window.setTimeout(() => resolve(false), 10000);
-      channel.port1.onmessage = (event) => {
-        window.clearTimeout(timeout);
-        resolve(event.data?.ready === true);
-      };
-      worker.postMessage({ type: "PREPARE_OFFLINE" }, [channel.port2]);
-    });
-  } catch {
-    return false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const registration = await withClientTimeout(navigator.serviceWorker.register("/sw.js"), 8000);
+      const readyRegistration = await withClientTimeout(navigator.serviceWorker.ready, 8000);
+      const worker = navigator.serviceWorker.controller ?? readyRegistration.active ?? registration.active;
+      if (!worker) continue;
+      const ready = await new Promise<boolean>((resolve) => {
+        const channel = new MessageChannel();
+        const timeout = window.setTimeout(() => resolve(false), 10000);
+        channel.port1.onmessage = (event) => {
+          window.clearTimeout(timeout);
+          resolve(event.data?.ready === true);
+        };
+        worker.postMessage({ type: "PREPARE_OFFLINE" }, [channel.port2]);
+      });
+      if (ready) return true;
+    } catch {
+      // A short retry handles a transient first-load or iOS activation race.
+    }
+    if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 400));
   }
+  return false;
 }
 
 function withClientTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
