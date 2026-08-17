@@ -9,6 +9,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Walking-stage start and end selection from the saved Locations list
 - Custom named locations with coordinate-to-path matching on the Locations screen
 - Editable saved-location list with coordinate-to-GPX matching
+- Protection against deleting locations that are still used by planned stages
 - Dedicated Locations screen for place editing, OS Maps links, GPS simulation and advanced GPX tools
 - Elevation profile for each selected day
 - Elevation profile positioned first beneath the Track screen top bar, titled with the selected start and end points and labelled with its day and date
@@ -22,6 +23,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Previous/next day controls and automatic selection of today's dated walk
 - One itinerary start date with automatically calculated stage dates
 - Touch-friendly drag-and-drop stage reordering with automatic renumbering and rescheduling
+- Inline confirmation before deleting a walking stage or saved location
 - Optional break days between stages that shift every later date
 - Save and change notices that dismiss automatically after four seconds
 - Device-local persistence in IndexedDB (Dexie)
@@ -67,15 +69,21 @@ The seven default planning locations are Mousehole, Penzance, Porthleven, Lizard
 The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the expandable **Route data & GPX** area on the **Locations** screen. To regenerate the bundled segment from the supplied full-route GPX:
 
 ```bash
-npm run route:segment -- path/to/full-route.gpx public/data/swcp-route.json
+npm run route:segment -- path/to/full-route.gpx app/data/swcp-route.json
 ```
 
-Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled Mousehole–Falmouth route** currently replaces the route and resets the plan to its default stage.
+This supplied-GPX extraction command is the single supported route-generation path. The earlier illustrative OpenStreetMap generator has been removed.
+
+Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled Mousehole–Falmouth route** uses the same confirmation and rematching safeguards while also restoring the seven default planning locations.
 
 Cloud sync is intentionally not included. IndexedDB remains the source of truth for this version, leaving accounts and shared sync as a later extension.
 
-## Hosting
+## Deploy to Netlify
 
-The current build uses Vinext with the Cloudflare Vite runtime and is published through Sites. The current Sites workspace allows owner/custom or workspace-wide access, but not anonymous public access, so its hosted URL requires sign-in. A public Netlify deployment will require adapting the build to a Netlify-supported output before connecting the repository.
+The application is a static Vite site. `npm run build` creates the complete deployable site in `dist`; it does not require a server runtime, Cloudflare Worker or environment variables. The checked-in `netlify.toml` sets the build command, confirms the publish directory is `dist`, supplies the single-page-app fallback and prevents stale service-worker responses.
+
+Push the repository to GitHub, then in Netlify choose **Add new site → Import an existing project** and select the repository. Netlify will read the build settings automatically. After the first deployment, open the Netlify URL on the iPhone, wait for **Offline ready**, and add that URL to the Home Screen.
+
+IndexedDB is tied to the website address. A plan saved under the previous hosted address will not automatically appear at the new Netlify address, so the plan must currently be recreated there.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the feature behaviour, data flow, offline design, storage model and test coverage.

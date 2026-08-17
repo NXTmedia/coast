@@ -1,23 +1,26 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
 test("ships the PWA and offline route dataset", async () => {
-  const [manifest, serviceWorker, route] = await Promise.all([
+  const [manifest, serviceWorker, route, index] = await Promise.all([
     readFile(new URL("public/manifest.webmanifest", root), "utf8").then(JSON.parse),
     readFile(new URL("public/sw.js", root), "utf8"),
-    readFile(new URL("public/data/swcp-route.json", root), "utf8").then(JSON.parse),
+    readFile(new URL("app/data/swcp-route.json", root), "utf8").then(JSON.parse),
+    readFile(new URL("index.html", root), "utf8"),
   ]);
   assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.orientation, "any");
   assert.doesNotMatch(serviceWorker, /tile\.openstreetmap\.org/);
-  assert.match(serviceWorker, /\/data\/swcp-route\.json/);
+  assert.doesNotMatch(serviceWorker, /\/data\/swcp-route\.json/);
   assert.match(serviceWorker, /PREPARE_OFFLINE/);
   assert.match(serviceWorker, /navigationResponse/);
   assert.match(serviceWorker, /shellAssetsFromHtml/);
   assert.match(serviceWorker, /cacheAssetGraph/);
   assert.match(serviceWorker, /importedAssetsFromText/);
+  assert.match(serviceWorker, /hasExpectedContentType/);
   assert.match(serviceWorker, /READY_MARKER/);
   assert.match(serviceWorker, /hasCachedShell/);
   assert.match(serviceWorker, /if \(!ready\) throw new Error\("The complete app shell could not be cached"\)/);
@@ -26,8 +29,42 @@ test("ships the PWA and offline route dataset", async () => {
   assert.ok(route.officialDistanceKm > 105 && route.officialDistanceKm < 106);
   assert.match(route.geometrySource, /Supplied South West Coast Path GPX/);
   assert.match(route.elevationSource, /Supplied GPX elevation/);
+  assert.match(index, /maximum-scale=1/);
+  assert.match(index, /user-scalable=no/);
+  assert.match(await readFile(new URL("app/globals.css", root), "utf8"), /touch-action: pan-x pan-y/);
   assert.deepEqual(route.checkpoints.map((point) => point.name), ["Mousehole", "Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
   assert.ok(route.checkpoints[1].distanceKm > 5 && route.checkpoints[1].distanceKm < 6);
+});
+
+test("builds as a static Vite app configured for Netlify", async () => {
+  const [packageJson, lockfile, vite, index, entry, netlify] = await Promise.all([
+    readFile(new URL("package.json", root), "utf8").then(JSON.parse),
+    readFile(new URL("package-lock.json", root), "utf8"),
+    readFile(new URL("vite.config.ts", root), "utf8"),
+    readFile(new URL("index.html", root), "utf8"),
+    readFile(new URL("src/main.tsx", root), "utf8"),
+    readFile(new URL("netlify.toml", root), "utf8"),
+  ]);
+
+  assert.equal(packageJson.scripts.build, "vite build");
+  assert.match(packageJson.scripts.dev, /^vite /);
+  assert.equal(packageJson.devDependencies.vinext, undefined);
+  assert.equal(packageJson.devDependencies.wrangler, undefined);
+  assert.equal(packageJson.devDependencies["@cloudflare/vite-plugin"], undefined);
+  assert.doesNotMatch(lockfile, /node_modules\/(?:vinext|wrangler|@cloudflare\/vite-plugin)/);
+  assert.match(vite, /@vitejs\/plugin-react/);
+  assert.doesNotMatch(vite, /vinext|cloudflare|sites\(/i);
+  assert.match(index, /<div id="root"><\/div>/);
+  assert.match(index, /src="\/src\/main\.tsx"/);
+  assert.match(entry, /createRoot\(root\)\.render\(<CoastPathApp \/>\)/);
+  assert.match(netlify, /command = "npm run build"/);
+  assert.match(netlify, /publish = "dist"/);
+  assert.match(netlify, /to = "\/index\.html"/);
+  assert.match(netlify, /for = "\/sw\.js"/);
+  await Promise.all([
+    "app/layout.tsx", "app/page.tsx", "build/sites-vite-plugin.ts", "next-env.d.ts",
+    "next.config.ts", "worker/index.ts", ".openai/hosting.json",
+  ].map((path) => assert.rejects(access(new URL(path, root)))));
 });
 
 test("includes the requested offline-first features", async () => {
@@ -50,6 +87,9 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /Accuracy ±\{Math\.round\(gps\.accuracy\)\} metres/);
   assert.match(app, /Tap the location button at the top right to start GPS/);
   assert.match(app, /setTrackGps\(false\)/);
+  assert.match(app, /error\.code === 1/);
+  assert.match(app, /navigator\.geolocation\.clearWatch\(id\)/);
+  assert.match(app, /setWatchId\(\(current\) => current === id \? null : current\)/);
   assert.match(styles, /\.gps-coordinate-display/);
   assert.match(app, /ReferenceDot/);
   assert.match(app, /You are here/);
@@ -92,10 +132,24 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /label="Route"/);
   assert.doesNotMatch(app, /Offline trail data/);
   assert.match(app, /Match and save/);
+  assert.match(app, /daysUsingLocation\(days, location\.name\)/);
+  assert.match(app, /Change those stages before deleting it/);
+  assert.match(app, /pendingDayDeleteId/);
+  assert.match(app, /pendingLocationDeleteName/);
+  assert.match(app, /label="Delete stage\?"/);
+  assert.match(app, /label="Delete location\?"/);
+  assert.match(app, /inline-confirm-cancel/);
+  assert.match(app, /inline-confirm-delete/);
+  assert.match(styles, /\.inline-delete-confirm/);
   assert.match(app, /window\.confirm\(warning\)/);
   assert.match(app, /prepareRouteImport\(route, imported, days\)/);
   assert.match(app, /replaceRouteAndDays\(prepared\.route, prepared\.days\)/);
   assert.match(app, /GPX import cancelled\. Nothing was changed\./);
+  assert.match(app, /Restore the bundled Mousehole–Falmouth route\?/);
+  assert.match(app, /Bundled-route restoration cancelled\. Nothing was changed\./);
+  assert.doesNotMatch(app, /fetch\("\/data\/swcp-route\.json"\)/);
+  assert.match(app, /role="status" aria-live="polite"/);
+  assert.match(app, /aria-current=\{active \? "page" : undefined\}/);
   assert.doesNotMatch(app, /Fine-tune start/);
   assert.doesNotMatch(app, /Fine-tune end/);
   assert.match(app, /AreaChart/);
@@ -121,4 +175,32 @@ test("includes the requested offline-first features", async () => {
   assert.match(styles, /height: 100dvh/);
   assert.match(planning, /totalPlannedDistanceKm/);
   assert.match(matching, /nearestRoutePosition/);
+});
+
+test("keeps one maintained route-data path and no obsolete map tooling", async () => {
+  const [packageJson, lockfile, vite, types, database, styles, app, readme, architecture] = await Promise.all([
+    readFile(new URL("package.json", root), "utf8").then(JSON.parse),
+    readFile(new URL("package-lock.json", root), "utf8"),
+    readFile(new URL("vite.config.ts", root), "utf8"),
+    readFile(new URL("app/types.ts", root), "utf8"),
+    readFile(new URL("app/lib/db.ts", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
+    readFile(new URL("app/components/CoastPathApp.tsx", root), "utf8"),
+    readFile(new URL("README.md", root), "utf8"),
+    readFile(new URL("docs/ARCHITECTURE.md", root), "utf8"),
+  ]);
+
+  assert.equal(packageJson.scripts["route:data"], undefined);
+  assert.equal(packageJson.devDependencies.osmtogeojson, undefined);
+  assert.doesNotMatch(lockfile, /osmtogeojson/);
+  assert.doesNotMatch(vite, /maplibre/i);
+  assert.doesNotMatch(types, /completedDistanceKm/);
+  assert.doesNotMatch(database, /export async function replaceRoute\(/);
+  assert.doesNotMatch(styles, /\.hero-row/);
+  assert.doesNotMatch(app, /locations-workspace|simulation-card/);
+  assert.match(packageJson.scripts["route:segment"], /extract-gpx-segment/);
+  assert.match(readme, /single supported route-generation path/);
+  assert.match(architecture, /only maintained route-generation script/);
+  await assert.rejects(access(new URL("app/chatgpt-auth.ts", root)));
+  await assert.rejects(access(new URL("scripts/build-route-data.mjs", root)));
 });

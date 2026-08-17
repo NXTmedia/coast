@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
 const input = process.argv[2];
-const output = process.argv[3] ?? "public/data/swcp-route.json";
+const output = process.argv[3] ?? "app/data/swcp-route.json";
 
 if (!input) throw new Error("Usage: npm run route:segment -- source.gpx [output.json]");
 

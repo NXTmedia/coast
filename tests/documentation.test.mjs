@@ -13,7 +13,8 @@ test("documentation covers the current navigation, GPS, offline and GPX workflow
 
   assert.match(readme, /docs\/USER_GUIDE\.md/);
   assert.match(readme, /Confirmed GPX import/);
-  assert.match(readme, /requires sign-in/);
+  assert.match(readme, /Netlify/);
+  assert.match(readme, /publish directory is `dist`/);
   assert.match(architecture, /Track, Plan and Locations/);
   assert.match(architecture, /real-GPS coordinate check/);
   assert.match(architecture, /committed in one IndexedDB transaction/);
@@ -23,4 +24,5 @@ test("documentation covers the current navigation, GPS, offline and GPX workflow
   assert.match(guide, /5 km of the new route/);
   assert.match(guide, /Restore bundled Mousehole–Falmouth route/);
   assert.match(guide, /There is no account, cloud sync, plan export or cross-device backup/);
+  assert.match(guide, /new website address has its own IndexedDB storage/);
 });

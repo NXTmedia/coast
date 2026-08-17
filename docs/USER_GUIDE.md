@@ -18,14 +18,17 @@ The **Plan** screen has one walk start date. Each stage occupies one walking day
 - Drag stages to reorder them; numbering and dates update automatically.
 - Add a break after a stage with its break-day button. Every later date moves forward by one day.
 - Remove a break to close the date gap again.
+- Tap a stage's delete icon, then use the inline **Delete stage?** confirmation. **Cancel** leaves it unchanged.
 
 Stage names and coordinates are not edited here. Manage them on **Locations**.
 
 ## Manage locations
 
-The **Locations** screen contains the named points available to the stage editor. Add a name, latitude and longitude; Coastline stores the closest projected point on the active GPX route. Locations are sorted by distance along the route.
+The **Locations** screen contains the named points available to the stage editor. Add a name, latitude and longitude; Coastline stores the closest projected point on the active GPX route. Locations are sorted by distance along the route. A location used by a planned stage cannot be deleted until that stage is changed.
 
 The external-link button beside a location opens its matched coordinate in OS Maps using Leisure style, 2D view and zoom level 13. At least two saved locations must remain.
+
+Deleting a saved location also requires the inline **Delete location?** confirmation. A location used by a planned stage remains protected even after confirmation; change those stages first.
 
 ## Track progress with real GPS
 
@@ -56,7 +59,7 @@ Before changing the device, the confirmation shows:
 
 Cancel to leave all local data unchanged. Confirm to save the imported route and preserved plan together. The itinerary start date remains unchanged. If no stage can be preserved, one default stage is created across the imported route.
 
-**Restore bundled Mousehole–Falmouth route** is a reset action: it restores the supplied route and locations, clears the current stages and creates the default Mousehole-to-Falmouth stage.
+**Restore bundled Mousehole–Falmouth route** first reports how many current locations and stages can be rematched. Cancelling changes nothing. Confirming restores the supplied route and seven default locations, keeps compatible current locations and stages, and retains the itinerary start date.
 
 ## Device-local data and limitations
 
@@ -64,4 +67,4 @@ Routes, locations, stages and settings are stored in IndexedDB on the current de
 
 An iPhone web app can receive location updates while it is active, but iOS may suspend browser activity in the background or when the screen is locked. Keep the app open while using live progress.
 
-The current hosted Sites address requires an authorised sign-in. A genuinely public deployment needs a public hosting target and a compatible build configuration.
+When the app is deployed to Netlify it can be opened at the public Netlify address without the previous Sites sign-in. A new website address has its own IndexedDB storage, so plans saved under another address do not automatically transfer to it.

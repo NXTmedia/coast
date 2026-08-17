@@ -1,8 +1,6 @@
-"use client";
-
 import Dexie, { type EntityTable } from "dexie";
 import type { Checkpoint, TrailRoute, WalkingDay } from "../types";
-import bundledRouteData from "../../public/data/swcp-route.json";
+import bundledRouteData from "../data/swcp-route.json";
 import { normalizeDayOrders, removeLegacyStarterDays } from "./days";
 import { fillWalkingDayDates } from "./planning";
 import { migrateCheckpointsToRoute, migrateDaysToRoute } from "./route";
@@ -28,6 +26,10 @@ class CoastPathDatabase extends Dexie {
 export const db = new CoastPathDatabase();
 
 const bundledRoute = bundledRouteData as unknown as TrailRoute;
+
+export function getBundledRoute(): TrailRoute {
+  return bundledRoute;
+}
 
 function fallbackId() {
   return globalThis.crypto?.randomUUID?.() ?? `day-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -112,11 +114,6 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
 export async function savePlanStartDate(value: string) {
   if (value) await db.settings.put({ key: "plan-start-date", value });
   else await db.settings.delete("plan-start-date");
-}
-
-export async function replaceRoute(route: TrailRoute) {
-  await db.routes.put({ key: "active", data: route });
-  await db.days.clear();
 }
 
 export async function replaceRouteAndDays(route: TrailRoute, days: WalkingDay[]) {

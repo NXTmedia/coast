@@ -50,3 +50,7 @@ export function dayIdForDate(days: WalkingDay[], dateKey: string): string {
 export function dayIdContainingDistance(days: WalkingDay[], distanceKm: number): string | undefined {
   return days.find((day) => distanceKm >= day.startDistanceKm && distanceKm <= day.endDistanceKm)?.id;
 }
+
+export function daysUsingLocation(days: WalkingDay[], locationName: string): WalkingDay[] {
+  return days.filter((day) => day.startName === locationName || day.endName === locationName);
+}

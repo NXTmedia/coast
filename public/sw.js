@@ -1,6 +1,6 @@
-const VERSION = "coastline-v21";
+const VERSION = "coastline-v28";
 const SHELL_CACHE = `${VERSION}-shell`;
-const SHELL = ["/", "/manifest.webmanifest", "/data/swcp-route.json"];
+const SHELL = ["/", "/manifest.webmanifest"];
 const READY_MARKER = "/__coastline_offline_ready__";
 
 function shellAssetsFromHtml(html) {
@@ -40,6 +40,14 @@ function importedAssetsFromText(text, baseUrl) {
   return [...assets];
 }
 
+function hasExpectedContentType(asset, contentType) {
+  const pathname = new URL(asset, self.location.origin).pathname;
+  if (/\.m?js$/.test(pathname)) return contentType.includes("javascript");
+  if (pathname.endsWith(".css")) return contentType.includes("css");
+  if (pathname.endsWith(".webmanifest")) return contentType.includes("manifest") || contentType.includes("json");
+  return true;
+}
+
 async function cacheAssetGraph(cache, initialAssets) {
   const queue = [...initialAssets];
   const required = new Set(initialAssets);
@@ -50,7 +58,8 @@ async function cacheAssetGraph(cache, initialAssets) {
     if (visited.size >= 600) return false;
     visited.add(asset);
     const response = await fetch(new Request(asset, { cache: "reload" }));
-    if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok || !hasExpectedContentType(asset, contentType)) {
       // Regex-based dependency discovery can see import examples inside a
       // library's source text. Direct HTML assets are mandatory; an unfetchable
       // transitive candidate is ignored because the running online app cannot
@@ -58,7 +67,6 @@ async function cacheAssetGraph(cache, initialAssets) {
       if (required.has(asset)) return false;
       continue;
     }
-    const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("javascript") || contentType.includes("css")) {
       const text = await response.clone().text();
       const baseUrl = new URL(asset, self.location.origin);
@@ -156,7 +164,6 @@ self.addEventListener("fetch", (event) => {
     || request.destination === "style"
     || request.destination === "font"
     || request.destination === "image"
-    || url.pathname === "/manifest.webmanifest"
-    || url.pathname === "/data/swcp-route.json";
+    || url.pathname === "/manifest.webmanifest";
   if (cacheableAsset) event.respondWith(cacheFirst(request, SHELL_CACHE));
 });

@@ -6,6 +6,7 @@ import {
   dayIdContainingDistance,
   dayIdForDate,
   dayDistanceKm,
+  daysUsingLocation,
   fillWalkingDayDates,
   localDateKey,
   plannedProgressKm,
@@ -75,4 +76,13 @@ test("a GPS position selects the planned day containing that trail distance", ()
   ];
   assert.equal(dayIdContainingDistance(days, 45), "lynmouth");
   assert.equal(dayIdContainingDistance(days, 30), undefined);
+});
+
+test("locations used by planned stages are identified before deletion", () => {
+  const days = [
+    day({ id: "one", startName: "Mousehole", endName: "Penzance" }),
+    day({ id: "two", startName: "Penzance", endName: "Porthleven" }),
+  ];
+  assert.deepEqual(daysUsingLocation(days, "Penzance").map(({ id }) => id), ["one", "two"]);
+  assert.deepEqual(daysUsingLocation(days, "Falmouth"), []);
 });

@@ -32,7 +32,6 @@ export type WalkingDay = {
   endName: string;
   startDistanceKm: number;
   endDistanceKm: number;
-  completedDistanceKm?: number;
   startCoordinate?: CoordinateMatch;
   endCoordinate?: CoordinateMatch;
 };

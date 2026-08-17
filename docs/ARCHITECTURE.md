@@ -12,22 +12,31 @@ The Locations screen also provides a deliberately separate real-GPS check. Enabl
 
 The Plan screen owns one itinerary start date. Every walking stage consumes one calendar day and its date is derived from its current order. Stages can be reordered with pointer, touch or keyboard drag-and-drop; the app immediately renumbers them and recalculates every date. A break can be inserted after any non-final stage. It appears as a distinct rest-day row and adds one day to every later stage. The stage editor contains only start and end selectors populated from the saved Locations list, plus the previous-end shortcut and planned distance. Dates, coordinate matching and naming are deliberately absent from this editor so each concern has one source of truth.
 
-On the Track screen, a phone-sized landscape viewport (landscape orientation with no more than 500 CSS pixels of height) activates profile-only mode. The top bar, day picker, progress information, summary and bottom navigation are hidden while the elevation card fills the available dynamic viewport with iPhone safe-area padding. Rotating back to portrait restores the normal layout without changing application state. Larger landscape devices retain the standard interface.
+Stage and location delete buttons open compact confirmations directly beneath the affected row. Cancel closes the prompt without changing data; Delete performs the existing IndexedDB update. Location constraints are checked after confirmation, so a protected location remains in place and explains which stages must change.
+
+On the Track screen, a phone-sized landscape viewport (landscape orientation with no more than 500 CSS pixels of height) activates profile-only mode. The web-app manifest permits any orientation so the installed PWA can enter this mode. The top bar, day picker, progress information, summary and bottom navigation are hidden while the elevation card fills the available dynamic viewport with iPhone safe-area padding. Rotating back to portrait restores the normal layout without changing application state. Larger landscape devices retain the standard interface.
+
+The root viewport uses the device width at a fixed scale of one and disables user scaling. This prevents accidental pinch-zooming in Safari and in the installed iPhone app while preserving the portrait and landscape layouts.
 
 ## Application structure
 
+- `index.html` supplies the static document, mobile/PWA metadata and React mount point.
+- `src/main.tsx` mounts the client-only React application.
 - `app/components/CoastPathApp.tsx` owns the main React interface and coordinates loading, editing, GPS, simulation and navigation.
 - `app/lib/db.ts` defines IndexedDB storage and loads the bundled route without requiring a network request.
 - `app/lib/days.ts` keeps itinerary order contiguous after additions, deletions and drag-and-drop moves while retaining break positions.
 - `app/lib/planning.ts` contains planned-distance, progress, naming and automatic stage/break-date rules.
 - `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and OS Maps link generation.
 - `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Mousehole-to-Falmouth GPX section.
-- `public/sw.js` caches the application shell and bundled route for offline startup.
+- `public/sw.js` caches the generated application shell for offline startup.
+- `netlify.toml` defines the static build, publish directory, SPA fallback and service-worker cache headers.
 - `tests/` contains automated tests for the important planning, route, GPS, persistence and PWA behaviours.
 
 ## Route and elevation data
 
-The bundled route is stored in `public/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Mousehole to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
+The bundled route is stored in `app/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Mousehole to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
+
+The GPX segment extractor is the only maintained route-generation script. The superseded illustrative OpenStreetMap generator and its conversion dependency have been removed so the repository has one authoritative data path.
 
 The resulting route contains 4,685 points, approximately 105.5 km of path and the supplied elevation values. The added Mousehole-to-Penzance section is approximately 5.5 km. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX from the Locations screen's advanced route-data area replaces both geometry and elevation locally.
 
@@ -43,7 +52,7 @@ The seven default planning locations were geocoded with OpenStreetMap/Nominatim 
 | Helford | 50.093298 | -5.135753 | 89.1 km |
 | Falmouth | 50.155225 | -5.068876 | 105.5 km |
 
-The bottom navigation contains Track, Plan and Locations. Plan is limited to walking-day scheduling. Locations edits the active route's checkpoint list and also contains GPS simulation, the separate real-GPS coordinate check, and an expandable advanced section for GPX import, bundled-route restoration and route facts. New or edited place coordinates are projected to the nearest point on the active GPX route before being saved. At least two locations are retained so a walking day can always have a start and end.
+The bottom navigation contains Track, Plan and Locations. Plan is limited to walking-day scheduling. Locations edits the active route's checkpoint list and also contains GPS simulation, the separate real-GPS coordinate check, and an expandable advanced section for GPX import, bundled-route restoration and route facts. New or edited place coordinates are projected to the nearest point on the active GPX route before being saved. At least two locations are retained so a walking day can always have a start and end. A location referenced by any planned stage cannot be deleted until those stages are changed, preventing names and route boundaries from becoming inconsistent.
 
 ## Location pipeline
 
@@ -66,9 +75,13 @@ Track-screen endpoint links use the selected saved locations' matched route coor
 
 Dexie stores the active route (including its editable saved locations), walking stages, the itinerary start date and other settings in the browser's IndexedDB database named `coastline-swcp`. Walking stages use stable IDs, a numeric order and an optional break-after marker. Order and dates are repaired on every load and after changes. When an older bundled route is detected, compatible walking stages are rematched by their endpoint coordinates. Upgrading from the Penzance-to-Falmouth bundle also rematches custom saved locations and inserts Mousehole, rather than discarding device-local planning changes. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
-Before an imported GPX replaces the active route, the app parses its line geometry and elevation, calculates cumulative distance, then determines how many saved locations and planned stages can be rematched within five kilometres. Those counts and any removals are presented for confirmation. Cancelling performs no writes. On confirmation, the new route and all successfully rematched stages are committed in one IndexedDB transaction; the itinerary start-date setting is retained. New GPX endpoints are added only when no preserved location already represents them. If no existing stage survives, normal loading creates one stage between the first and last available locations. Restoring the bundled route uses the older reset flow: it replaces the route, clears stages and then creates the default Mousehole-to-Falmouth stage.
+Before an imported GPX replaces the active route, the app parses its line geometry and elevation, calculates cumulative distance, then determines how many saved locations and planned stages can be rematched within five kilometres. Those counts and any removals are presented for confirmation. Cancelling performs no writes. On confirmation, the new route and all successfully rematched stages are committed in one IndexedDB transaction; the itinerary start-date setting is retained. New GPX endpoints are added only when no preserved location already represents them. If no existing stage survives, normal loading creates one stage between the first and last available locations. Restoring the bundled route follows the same confirmed, transactional rematching flow and merges the seven bundled locations with compatible current locations.
 
-The service worker fetches the application page, discovers its same-origin JavaScript and stylesheet references, and caches those assets alongside the manifest and bundled route. It writes a versioned readiness marker only after the complete shell is stored; an incomplete new version is not allowed to replace the previous working cache. On iOS, an already-controlled offline launch is recognised immediately, registration waits are bounded, and the app retries preparation when connectivity returns. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening OS Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
+The supplied route is embedded in the generated JavaScript, so it never requires a separate startup request. The service worker fetches the static application page, discovers its same-origin JavaScript and stylesheet references, and caches those assets alongside the manifest. It validates the expected JavaScript, stylesheet and manifest content types so Netlify's HTML fallback cannot be mistaken for a missing application asset. It writes a versioned readiness marker only after the complete shell is stored; an incomplete new version is not allowed to replace the previous working cache. On iOS, an already-controlled offline launch is recognised immediately, registration waits are bounded, and the app retries preparation when connectivity returns. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening OS Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
+
+## Build and hosting
+
+The application is a client-only React 19 app built by Vite into static files in `dist`. Netlify serves those files directly. Its configuration rewrites unknown navigation requests to `index.html`, while keeping the service worker and manifest revalidating so updates are discovered promptly. No server-side rendering, Cloudflare Worker, runtime database or hosting-specific environment variable is required.
 
 ## Tests
 
@@ -87,8 +100,13 @@ Run `npm test` for the automated suite and `npm run build` for the production co
 - GPS simulation;
 - live GPS coordinate display and acquisition guidance;
 - confirmed GPX replacement and plan rematching;
+- protection against deleting locations referenced by stages;
+- confirmed bundled-route restoration with plan rematching;
+- landscape orientation support in the installed manifest;
+- terminal GPS permission-error cleanup;
 - OS Maps coordinate links with fixed Leisure, 2D and zoom settings;
 - presence of the main requested interface capabilities.
+- static Vite entry points and Netlify deployment configuration.
 
 ## Current boundaries
 
@@ -97,4 +115,4 @@ Run `npm test` for the automated suite and `npm run build` for the production co
 - Supplied GPX elevation is more useful than the former illustrative profile but remains subject to the source file's elevation accuracy and sampling noise.
 - GPS tracking in an iPhone web app depends on Safari permission and iOS background-execution limits.
 - OS Maps links are external and are not available offline unless the device already has suitable offline map data.
-- The current Sites deployment is owner-only because anonymous public access is unavailable in the active workspace. The Vinext/Cloudflare build needs a hosting-target adaptation before deployment to Netlify.
+- Browser data is origin-specific. Moving from another hosted address to a Netlify address does not transfer its IndexedDB plan.

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
 import {
   closestCenter, DndContext, KeyboardSensor, PointerSensor, TouchSensor,
@@ -18,10 +16,10 @@ import {
   Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { db, loadInitialData, replaceRoute, replaceRouteAndDays, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
+import { db, getBundledRoute, loadInitialData, replaceRouteAndDays, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
 import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
-  breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate,
+  breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
   fillWalkingDayDates, localDateKey, plannedProgressKm, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
@@ -52,10 +50,12 @@ export function CoastPathApp() {
   const [trackGps, setTrackGps] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [watchId, setWatchId] = useState<number | null>(null);
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [offlineState, setOfflineState] = useState<OfflineState>("preparing");
   const [editor, setEditor] = useState<EditorState>(null);
   const [locationEditor, setLocationEditor] = useState<LocationEditorState>(null);
+  const [pendingDayDeleteId, setPendingDayDeleteId] = useState<string | null>(null);
+  const [pendingLocationDeleteName, setPendingLocationDeleteName] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const dragSensors = useSensors(
@@ -71,7 +71,6 @@ export function CoastPathApp() {
         if (!storageReady) setOfflineState("limited");
       })
       .catch((error) => setLoadingError(error instanceof Error ? error.message : "Unable to load the trail."));
-    setOnline(navigator.onLine);
     const isLocalDevelopment = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
     const refreshOfflineState = () => {
       if (isLocalDevelopment) { setOfflineState("ready"); return; }
@@ -93,12 +92,12 @@ export function CoastPathApp() {
         // A development service worker can cache stale Vite module URLs after HMR.
         navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister()));
         caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("coastline-")).map((key) => caches.delete(key))));
-        setOfflineState("ready");
+        queueMicrotask(() => setOfflineState("ready"));
       } else {
         refreshOfflineState();
       }
     } else {
-      setOfflineState("limited");
+      queueMicrotask(() => setOfflineState("limited"));
     }
     return () => {
       window.removeEventListener("online", handleOnline);
@@ -160,9 +159,17 @@ export function CoastPathApp() {
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); setWatchId(null); setGps(null); return; }
     if (simulateGps) setGps(null);
     setSimulateGps(false);
-    const id = navigator.geolocation.watchPosition(
+    let id = -1;
+    id = navigator.geolocation.watchPosition(
       (position) => setGps(position.coords),
-      (error) => setGpsError(error.code === 1 ? "Location permission was not granted. Allow location in Safari settings and try again." : error.message),
+      (error) => {
+        setGpsError(error.code === 1 ? "Location permission was not granted. Allow location in Safari settings and try again." : error.message);
+        if (error.code === 1) {
+          if (id >= 0) navigator.geolocation.clearWatch(id);
+          setWatchId((current) => current === id ? null : current);
+          setGps(null);
+        }
+      },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
     setWatchId(id);
@@ -256,7 +263,7 @@ export function CoastPathApp() {
       await db.days.delete(day.id);
       if (updated.length) await db.days.bulkPut(updated);
     });
-    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setNotice("Walking stage removed; numbering and dates updated.");
+    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setPendingDayDeleteId(null); setNotice("Walking stage removed; numbering and dates updated.");
   };
 
   const changePlanStartDate = async (value: string) => {
@@ -349,9 +356,16 @@ export function CoastPathApp() {
 
   const deleteLocation = async (location: Checkpoint) => {
     if (!route) return;
-    if (route.checkpoints.length <= 2) { setNotice("Keep at least two saved locations for planning a walking day."); return; }
+    if (route.checkpoints.length <= 2) { setPendingLocationDeleteName(null); setNotice("Keep at least two saved locations for planning a walking day."); return; }
+    const affectedDays = daysUsingLocation(days, location.name);
+    if (affectedDays.length) {
+      setPendingLocationDeleteName(null);
+      setNotice(`${location.name} is used by ${affectedDays.length} planned ${affectedDays.length === 1 ? "stage" : "stages"}. Change those stages before deleting it.`);
+      return;
+    }
     const updatedRoute = await saveRouteCheckpoints(route, route.checkpoints.filter((point) => point.name !== location.name));
     setRoute(updatedRoute);
+    setPendingLocationDeleteName(null);
     setNotice(`${location.name} removed from the saved locations list.`);
   };
 
@@ -384,12 +398,33 @@ export function CoastPathApp() {
   };
 
   const restoreBundled = async () => {
-    const response = await fetch("/data/swcp-route.json");
-    const bundled = await response.json() as TrailRoute;
-    await replaceRoute(bundled);
+    if (!route) return;
+    const bundled = getBundledRoute();
+    const prepared = prepareRouteImport(route, bundled, days);
+    const unmatchedLocations = route.checkpoints.length - prepared.matchedLocationCount;
+    const unmatchedDays = days.length - prepared.days.length;
+    const warning = [
+      "Restore the bundled Mousehole–Falmouth route?",
+      `${prepared.matchedLocationCount} of ${route.checkpoints.length} current locations and ${prepared.days.length} of ${days.length} planned stages can be matched to it.`,
+      unmatchedLocations || unmatchedDays
+        ? `${unmatchedLocations} locations and ${unmatchedDays} stages are more than 5 km from the bundled route and will be removed.`
+        : "All current locations and planned stages will be preserved.",
+      "The seven bundled planning locations will also be restored. Your itinerary start date will be kept.",
+    ].join("\n\n");
+    if (!window.confirm(warning)) {
+      setNotice("Bundled-route restoration cancelled. Nothing was changed.");
+      return;
+    }
+    const checkpointsByName = new Map<string, Checkpoint>();
+    for (const point of [...bundled.checkpoints, ...prepared.route.checkpoints]) {
+      const key = point.name.toLowerCase();
+      if (!checkpointsByName.has(key)) checkpointsByName.set(key, point);
+    }
+    const restoredRoute = { ...bundled, checkpoints: [...checkpointsByName.values()].sort((a, b) => a.distanceKm - b.distanceKm) };
+    await replaceRouteAndDays(restoredRoute, prepared.days);
     const seeded = await loadInitialData();
     setRoute(seeded.route); setDays(seeded.days); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
-    setNotice("The bundled South West Coast Path route has been restored.");
+    setNotice(`The bundled route is restored. Preserved ${prepared.matchedLocationCount} locations and ${prepared.days.length} planned stages.`);
   };
 
   const installApp = async () => {
@@ -498,7 +533,10 @@ export function CoastPathApp() {
                     canAddBreak={index < days.length - 1}
                     onOpen={() => { setSelectedId(day.id); setTab("track"); }}
                     onEdit={() => openDayEditor("edit", day)}
-                    onDelete={() => deleteDay(day)}
+                    deletePending={pendingDayDeleteId === day.id}
+                    onRequestDelete={() => { setPendingLocationDeleteName(null); setPendingDayDeleteId(day.id); }}
+                    onCancelDelete={() => setPendingDayDeleteId(null)}
+                    onConfirmDelete={() => deleteDay(day)}
                     onToggleBreak={() => toggleBreakAfter(day.id)}
                   />)}
                 </div>
@@ -509,7 +547,7 @@ export function CoastPathApp() {
         )}
 
         {tab === "locations" && (
-          <section className="workspace-section locations-workspace">
+          <section className="workspace-section">
             <div className="section-heading"><div><p className="eyebrow"><MapPin size={14} /> Planning points</p><h1>Locations</h1><p>Manage the named places used as walking-day start and end points.</p></div><button className="primary-button" onClick={() => openLocationEditor()}><Plus size={17} /> Add location</button></div>
             <section className="location-library panel">
               <div className="location-list">
@@ -518,14 +556,20 @@ export function CoastPathApp() {
                   <div><strong>{location.name}</strong><small>{location.lat.toFixed(6)}, {location.lng.toFixed(6)} · {location.distanceKm.toFixed(1)} km</small></div>
                   <a href={osMapsUrl(location)} target="_blank" rel="noreferrer" aria-label={`Open ${location.name} in OS Maps`}><ExternalLink /></a>
                   <button onClick={() => openLocationEditor(location)} aria-label={`Edit ${location.name}`}><Pencil /></button>
-                  <button onClick={() => deleteLocation(location)} aria-label={`Delete ${location.name}`}><Trash2 /></button>
+                  <button onClick={() => { setPendingDayDeleteId(null); setPendingLocationDeleteName(location.name); }} aria-label={`Delete ${location.name}`}><Trash2 /></button>
+                  {pendingLocationDeleteName === location.name && <InlineDeleteConfirmation
+                    label="Delete location?"
+                    detail={location.name}
+                    onCancel={() => setPendingLocationDeleteName(null)}
+                    onConfirm={() => deleteLocation(location)}
+                  />}
                 </article>)}
               </div>
             </section>
-            <article className="simulation-card panel locations-simulation"><div><p className="eyebrow"><Satellite size={14} /> Testing</p><h2>Simulated GPS</h2><p>Test the live progress display with an iPhone-like reading about 3 km beyond Lizard Point.</p></div><label className="simulation-toggle"><input type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View Track</button>}</article>
+            <article className="panel locations-simulation"><div><p className="eyebrow"><Satellite size={14} /> Testing</p><h2>Simulated GPS</h2><p>Test the live progress display with an iPhone-like reading about 3 km beyond Lizard Point.</p></div><label className="simulation-toggle" htmlFor="simulate-gps" aria-label="Simulate GPS"><input id="simulate-gps" type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View Track</button>}</article>
             <article className="gps-check-card panel locations-gps">
               <div><p className="eyebrow"><LocateFixed size={14} /> Location services</p><h2>Check your GPS</h2><p>Show the coordinates supplied by your phone. Switch this on, then tap the location button at the top right.</p></div>
-              <label className="simulation-toggle"><input type="checkbox" role="switch" checked={trackGps} onChange={toggleGpsTracking} /><span className="toggle-track"><i /></span><span><strong>Track GPS</strong><small>{trackGps ? "Coordinate display is on" : "Coordinate display is off"}</small></span></label>
+              <label className="simulation-toggle" htmlFor="track-gps" aria-label="Track GPS"><input id="track-gps" type="checkbox" role="switch" checked={trackGps} onChange={toggleGpsTracking} /><span className="toggle-track"><i /></span><span><strong>Track GPS</strong><small>{trackGps ? "Coordinate display is on" : "Coordinate display is off"}</small></span></label>
               {trackGps && <div className="gps-coordinate-display" aria-live="polite">
                 {watchId !== null && gps && !simulateGps ? <>
                   <div><span>Latitude</span><strong>{gps.latitude.toFixed(6)}</strong></div>
@@ -540,7 +584,7 @@ export function CoastPathApp() {
               <div className="advanced-route-content">
                 <div className="route-facts"><div><span>Active route</span><strong>{route.name}</strong></div><div><span>Length</span><strong>{formatKm(route.officialDistanceKm)}</strong></div><div><span>Points</span><strong>{route.points.filter(Boolean).length.toLocaleString()}</strong></div><div><span>Elevation</span><strong>{route.elevationSource}</strong></div></div>
                 <div className="route-import"><p>A GPX track with elevation replaces the current route after confirmation. Saved locations and stages are matched onto it where possible.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => { handleImport(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Mousehole–Falmouth route</button></div>
-                <div className="offline-explainer"><CloudOff /><div><strong>Available offline</strong><p>The bundled route and its {route.points.filter(Boolean).length.toLocaleString()} elevation points are stored with the app.</p></div></div>
+                <div className="offline-explainer"><CloudOff /><div><strong>Available offline</strong><p>The active route and its {route.points.filter(Boolean).length.toLocaleString()} elevation points are stored on this device.</p></div></div>
               </div>
             </details>
           </section>
@@ -578,18 +622,21 @@ export function CoastPathApp() {
         </div>
       )}
 
-      {notice && <button className="toast" onClick={() => setNotice("")}><Check size={17} /><span>{notice}</span><X size={15} /></button>}
+      {notice && <div className="toast" role="status" aria-live="polite"><Check size={17} /><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );
 }
 
-function SortableDayItem({ day, selected, canAddBreak, onOpen, onEdit, onDelete, onToggleBreak }: {
+function SortableDayItem({ day, selected, canAddBreak, deletePending, onOpen, onEdit, onRequestDelete, onCancelDelete, onConfirmDelete, onToggleBreak }: {
   day: WalkingDay;
   selected: boolean;
   canAddBreak: boolean;
+  deletePending: boolean;
   onOpen: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void | Promise<void>;
   onToggleBreak: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
@@ -609,9 +656,15 @@ function SortableDayItem({ day, selected, canAddBreak, onOpen, onEdit, onDelete,
       <div className="row-actions">
         {canAddBreak && <button aria-label={`${day.breakAfter ? "Remove" : "Add"} break day after day ${day.order}`} aria-pressed={Boolean(day.breakAfter)} onClick={onToggleBreak}><Coffee size={17} /></button>}
         <button aria-label={`Edit day ${day.order}`} onClick={onEdit}><Pencil size={17} /></button>
-        <button aria-label={`Delete day ${day.order}`} onClick={onDelete}><Trash2 size={17} /></button>
+        <button aria-label={`Delete day ${day.order}`} onClick={onRequestDelete}><Trash2 size={17} /></button>
       </div>
     </article>
+    {deletePending && <InlineDeleteConfirmation
+      label="Delete stage?"
+      detail={`${day.startName} to ${day.endName}`}
+      onCancel={onCancelDelete}
+      onConfirm={onConfirmDelete}
+    />}
     {day.breakAfter && <article className="break-day-row">
       <span className="break-icon"><Coffee /></span>
       <span><small>{formatDate(breakDateAfter(day))}</small><strong>Break day</strong></span>
@@ -620,8 +673,23 @@ function SortableDayItem({ day, selected, canAddBreak, onOpen, onEdit, onDelete,
   </div>;
 }
 
+function InlineDeleteConfirmation({ label, detail, onCancel, onConfirm }: {
+  label: string;
+  detail: string;
+  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  return <div className="inline-delete-confirm" role="group" aria-label={`${label} ${detail}`}>
+    <span><strong>{label}</strong><small>{detail}</small></span>
+    <div>
+      <button className="inline-confirm-cancel" onClick={onCancel}>Cancel</button>
+      <button className="inline-confirm-delete" onClick={onConfirm}>Delete</button>
+    </div>
+  </div>;
+}
+
 function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  return <button className={active ? "active" : ""} onClick={onClick}>{icon}<span>{label}</span></button>;
+  return <button className={active ? "active" : ""} onClick={onClick} aria-current={active ? "page" : undefined}>{icon}<span>{label}</span></button>;
 }
 
 function ElevationTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { dayKm: number; elevationM: number } }> }) {

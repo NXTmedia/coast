@@ -64,7 +64,6 @@ function completeNetwork() {
   return new Map([
     ["/", response('<!doctype html><link rel="stylesheet" href="/styles.css"><script type="module" src="/entry.js"></script>', "text/html")],
     ["/manifest.webmanifest", response("{}", "application/manifest+json")],
-    ["/data/swcp-route.json", response('{"points":[]}', "application/json")],
     ["/styles.css", response('@import "./theme.css"; body { background: url("/coast.png"); }', "text/css")],
     ["/theme.css", response("body { color: green; }", "text/css")],
     ["/coast.png", response("image", "image/png")],
@@ -129,7 +128,7 @@ test("offline preparation caches the page, route and transitive app assets befor
   assert.equal(await harness.context.cacheShell(), true);
 
   const cache = await harness.caches.open(shellCacheName);
-  for (const asset of ["/", "/manifest.webmanifest", "/data/swcp-route.json", "/styles.css", "/theme.css", "/coast.png", "/entry.js", "/chunk.js"]) {
+  for (const asset of ["/", "/manifest.webmanifest", "/styles.css", "/theme.css", "/coast.png", "/entry.js", "/chunk.js"]) {
     assert.ok(await cache.match(asset), `${asset} should be available offline`);
   }
   assert.ok(await cache.match("/__coastline_offline_ready__"));
@@ -153,7 +152,7 @@ test("an installed app relaunches with cached navigation and scripts while the n
 
 test("an incomplete update never receives a readiness marker or replaces the working worker", async () => {
   const network = completeNetwork();
-  network.delete("/entry.js");
+  network.set("/entry.js", response("<!doctype html><title>SPA fallback</title>", "text/html"));
   const harness = createWorkerHarness(network);
   await harness.caches.open("coastline-prior-shell");
   let installTask;
