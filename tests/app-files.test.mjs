@@ -123,6 +123,11 @@ test("includes the requested offline-first features", async () => {
   assert.doesNotMatch(app, /Match to trail/);
   assert.doesNotMatch(app, /CoordinateMatcher/);
   assert.match(app, /nearestRoutePosition\(route, lng, lat\)/);
+  assert.match(app, /Latitude<input inputMode="text" type="text"/);
+  assert.match(app, /Longitude<input inputMode="text" type="text"/);
+  assert.match(app, /placeholder="e\.g\. -5\.3167"/);
+  assert.doesNotMatch(app, /inputMode="decimal" type="number"/);
+  assert.match(app, /!latText \|\| !lngText/);
   assert.match(app, /Open \$\{selectedDay\.startName\} in OS Maps/);
   assert.match(app, /osMapsUrl\(startLocation\)/);
   assert.match(app, /osMapsUrl\(location\)/);

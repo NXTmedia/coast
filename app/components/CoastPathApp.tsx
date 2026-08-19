@@ -332,9 +332,11 @@ export function CoastPathApp() {
   const saveLocation = async () => {
     if (!route || !locationEditor) return;
     const name = locationEditor.name.trim();
-    const lat = Number(locationEditor.lat);
-    const lng = Number(locationEditor.lng);
-    if (!name || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    const latText = locationEditor.lat.trim();
+    const lngText = locationEditor.lng.trim();
+    const lat = Number(latText);
+    const lng = Number(lngText);
+    if (!name || !latText || !lngText || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       setNotice("Enter a location name and valid latitude and longitude."); return;
     }
     const duplicate = route.checkpoints.some((point) => point.name.toLowerCase() === name.toLowerCase() && point.name !== locationEditor.originalName);
@@ -620,7 +622,10 @@ export function CoastPathApp() {
             <div className="editor-heading"><div><p className="eyebrow">Planning point</p><h2 id="location-editor-title">{locationEditor.mode === "new" ? "Add a saved location" : "Edit saved location"}</h2></div><button className="close-button" onClick={() => setLocationEditor(null)} aria-label="Close location editor"><X /></button></div>
             <p className="location-editor-note">Enter the place coordinates. The app will store the nearest point on the active GPX route.</p>
             <label>Location name<input type="text" value={locationEditor.name} onChange={(event) => setLocationEditor({ ...locationEditor, name: event.target.value })} placeholder="For example: Mullion Cove" /></label>
-            <div className="location-coordinate-fields"><label>Latitude<input inputMode="decimal" type="number" min="-90" max="90" step="any" value={locationEditor.lat} onChange={(event) => setLocationEditor({ ...locationEditor, lat: event.target.value })} /></label><label>Longitude<input inputMode="decimal" type="number" min="-180" max="180" step="any" value={locationEditor.lng} onChange={(event) => setLocationEditor({ ...locationEditor, lng: event.target.value })} /></label></div>
+            <div className="location-coordinate-fields">
+              <label>Latitude<input inputMode="text" type="text" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="e.g. 50.0834" value={locationEditor.lat} onChange={(event) => setLocationEditor({ ...locationEditor, lat: event.target.value })} /></label>
+              <label>Longitude<input inputMode="text" type="text" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="e.g. -5.3167" value={locationEditor.lng} onChange={(event) => setLocationEditor({ ...locationEditor, lng: event.target.value })} /></label>
+            </div>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setLocationEditor(null)}>Cancel</button><button className="primary-button" onClick={saveLocation}><MapPin size={17} /> Match and save</button></div>
           </section>
         </div>
