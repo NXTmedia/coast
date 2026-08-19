@@ -7,7 +7,7 @@
 3. Use Safari's **Share → Add to Home Screen** action.
 4. Open the installed app once more while online and wait for **Offline ready** before relying on it without a connection.
 
-The interface, bundled Mousehole-to-Falmouth route, elevation profile and saved plan then work without mobile data. OS Maps links remain external and may need connectivity or map data already available in the OS Maps app.
+The interface, bundled Land's End-to-Falmouth route, elevation profile and saved plan then work without mobile data. OS Maps links remain external and may need connectivity or map data already available in the OS Maps app.
 
 ## Plan the walk
 
@@ -59,7 +59,7 @@ Before changing the device, the confirmation shows:
 
 Cancel to leave all local data unchanged. Confirm to save the imported route and preserved plan together. The itinerary start date remains unchanged. If no stage can be preserved, one default stage is created across the imported route.
 
-**Restore bundled Mousehole–Falmouth route** first reports how many current locations and stages can be rematched. Cancelling changes nothing. Confirming restores the supplied route and seven default locations, keeps compatible current locations and stages, and retains the itinerary start date.
+**Restore bundled Land's End–Falmouth route** first reports how many current locations and stages can be rematched. Cancelling changes nothing. Confirming restores the supplied route and eight default locations, keeps compatible current locations and stages, and retains the itinerary start date.
 
 ## Device-local data and limitations
 

@@ -410,12 +410,12 @@ export function CoastPathApp() {
     const unmatchedLocations = route.checkpoints.length - prepared.matchedLocationCount;
     const unmatchedDays = days.length - prepared.days.length;
     const warning = [
-      "Restore the bundled Mousehole–Falmouth route?",
+      "Restore the bundled Land’s End–Falmouth route?",
       `${prepared.matchedLocationCount} of ${route.checkpoints.length} current locations and ${prepared.days.length} of ${days.length} planned stages can be matched to it.`,
       unmatchedLocations || unmatchedDays
         ? `${unmatchedLocations} locations and ${unmatchedDays} stages are more than 5 km from the bundled route and will be removed.`
         : "All current locations and planned stages will be preserved.",
-      "The seven bundled planning locations will also be restored. Your itinerary start date will be kept.",
+      "The eight bundled planning locations will also be restored. Your itinerary start date will be kept.",
     ].join("\n\n");
     if (!window.confirm(warning)) {
       setNotice("Bundled-route restoration cancelled. Nothing was changed.");
@@ -589,7 +589,7 @@ export function CoastPathApp() {
               <summary><span><RouteIcon /> Route data &amp; GPX</span><small>Import, restore or inspect the offline trail</small></summary>
               <div className="advanced-route-content">
                 <div className="route-facts"><div><span>Active route</span><strong>{route.name}</strong></div><div><span>Length</span><strong>{formatKm(route.officialDistanceKm)}</strong></div><div><span>Points</span><strong>{route.points.filter(Boolean).length.toLocaleString()}</strong></div><div><span>Elevation</span><strong>{route.elevationSource}</strong></div></div>
-                <div className="route-import"><p>A GPX track with elevation replaces the current route after confirmation. Saved locations and stages are matched onto it where possible.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => { handleImport(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Mousehole–Falmouth route</button></div>
+                <div className="route-import"><p>A GPX track with elevation replaces the current route after confirmation. Saved locations and stages are matched onto it where possible.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => { handleImport(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Land’s End–Falmouth route</button></div>
                 <div className="offline-explainer"><CloudOff /><div><strong>Available offline</strong><p>The active route and its {route.points.filter(Boolean).length.toLocaleString()} elevation points are stored on this device.</p></div></div>
               </div>
             </details>

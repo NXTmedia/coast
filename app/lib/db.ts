@@ -64,13 +64,23 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   try {
     const storedRoute = (await withTimeout(db.routes.get("active")))?.data;
     const isPreviousBundledRoute = storedRoute && storedRoute.id !== bundledRoute.id
-      && (storedRoute.id.startsWith("swcp-osm-") || storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04");
+      && (storedRoute.id.startsWith("swcp-osm-")
+        || storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04"
+        || storedRoute.id === "swcp-gpx-mousehole-falmouth-2026-04");
     if (isPreviousBundledRoute) {
       previousBundledRoute = storedRoute;
-      if (storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04") {
+      if (storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04" || storedRoute.id === "swcp-gpx-mousehole-falmouth-2026-04") {
         const migrated = migrateCheckpointsToRoute(storedRoute.checkpoints, bundledRoute);
-        const mousehole = bundledRoute.checkpoints.find((checkpoint) => checkpoint.name === "Mousehole");
-        route = { ...bundledRoute, checkpoints: [mousehole, ...migrated].filter(Boolean) as Checkpoint[] };
+        const addedPrefixNames = storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04"
+          ? new Set(["Land's End", "Mousehole"])
+          : new Set(["Land's End"]);
+        const addedPrefix = bundledRoute.checkpoints.filter((checkpoint) => addedPrefixNames.has(checkpoint.name));
+        const migratedNames = new Set(migrated.map((checkpoint) => checkpoint.name.toLowerCase()));
+        route = {
+          ...bundledRoute,
+          checkpoints: [...addedPrefix.filter((checkpoint) => !migratedNames.has(checkpoint.name.toLowerCase())), ...migrated]
+            .sort((a, b) => a.distanceKm - b.distanceKm),
+        };
       } else {
         route = bundledRoute;
       }

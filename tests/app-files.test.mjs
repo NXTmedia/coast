@@ -25,15 +25,17 @@ test("ships the PWA and offline route dataset", async () => {
   assert.match(serviceWorker, /hasCachedShell/);
   assert.match(serviceWorker, /if \(!ready\) throw new Error\("The complete app shell could not be cached"\)/);
   assert.doesNotMatch(serviceWorker, /return cached \?\? network/);
-  assert.ok(route.points.filter(Boolean).length > 4600);
-  assert.ok(route.officialDistanceKm > 105 && route.officialDistanceKm < 106);
-  assert.match(route.geometrySource, /Supplied South West Coast Path GPX/);
+  assert.ok(route.points.filter(Boolean).length > 5800);
+  assert.ok(route.officialDistanceKm > 126 && route.officialDistanceKm < 127);
+  assert.match(route.geometrySource, /Supplied South West Coast Path GPX, Land's End to Falmouth/);
   assert.match(route.elevationSource, /Supplied GPX elevation/);
   assert.match(index, /maximum-scale=1/);
   assert.match(index, /user-scalable=no/);
   assert.match(await readFile(new URL("app/globals.css", root), "utf8"), /touch-action: pan-x pan-y/);
-  assert.deepEqual(route.checkpoints.map((point) => point.name), ["Mousehole", "Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
-  assert.ok(route.checkpoints[1].distanceKm > 5 && route.checkpoints[1].distanceKm < 6);
+  assert.deepEqual(route.checkpoints.map((point) => point.name), ["Land's End", "Mousehole", "Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
+  assert.equal(route.checkpoints[0].distanceKm, 0);
+  assert.ok(route.checkpoints[1].distanceKm > 20.9 && route.checkpoints[1].distanceKm < 21.1);
+  assert.ok(route.checkpoints[2].distanceKm > 26.4 && route.checkpoints[2].distanceKm < 26.6);
 });
 
 test("builds as a static Vite app configured for Netlify", async () => {
@@ -79,6 +81,8 @@ test("includes the requested offline-first features", async () => {
   assert.match(database, /IndexedDB|Dexie|coastline-swcp/i);
   assert.match(database, /bundledRouteData/);
   assert.match(database, /normalizeDayOrders/);
+  assert.match(database, /swcp-gpx-mousehole-falmouth-2026-04/);
+  assert.match(database, /new Set\(\["Land's End"\]\)/);
   assert.match(days, /order: index \+ 1/);
   assert.match(app, /watchPosition/);
   assert.match(app, /Simulate GPS/);
@@ -155,7 +159,7 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /prepareRouteImport\(route, imported, days\)/);
   assert.match(app, /replaceRouteAndDays\(prepared\.route, prepared\.days\)/);
   assert.match(app, /GPX import cancelled\. Nothing was changed\./);
-  assert.match(app, /Restore the bundled Mousehole–Falmouth route\?/);
+  assert.match(app, /Restore the bundled Land’s End–Falmouth route\?/);
   assert.match(app, /Bundled-route restoration cancelled\. Nothing was changed\./);
   assert.doesNotMatch(app, /fetch\("\/data\/swcp-route\.json"\)/);
   assert.match(app, /role="status" aria-live="polite"/);

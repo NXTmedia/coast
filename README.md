@@ -4,7 +4,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 
 ## What works
 
-- A Mousehole-to-Falmouth starter day, plus create/edit/delete planning tools
+- A Land's End-to-Falmouth starter day, plus create/edit/delete planning tools
 - One-tap “start where the previous day ended” planning
 - Walking-stage start and end selection from the saved Locations list
 - Custom named locations with coordinate-to-path matching on the Locations screen
@@ -62,9 +62,9 @@ The automated offline regression suite runs the service worker inside a simulate
 
 ## Trail data
 
-The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Mousehole-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 4,685 points over approximately 105.5 km with the supplied elevation values. Mousehole to Penzance accounts for approximately 5.5 km of this route.
+The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Land's End-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 5,834 points over approximately 126.5 km with the supplied elevation values. Land's End to Mousehole accounts for approximately 21.0 km of this route.
 
-The seven default planning locations are Mousehole, Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved with OpenStreetMap/Nominatim and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations on the dedicated **Locations** screen; those changes are stored locally in IndexedDB.
+The eight default planning locations are Land's End, Mousehole, Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations on the dedicated **Locations** screen; those changes are stored locally in IndexedDB.
 
 The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the expandable **Route data & GPX** area on the **Locations** screen. To regenerate the bundled segment from the supplied full-route GPX:
 
@@ -74,7 +74,7 @@ npm run route:segment -- path/to/full-route.gpx app/data/swcp-route.json
 
 This supplied-GPX extraction command is the single supported route-generation path. The earlier illustrative OpenStreetMap generator has been removed.
 
-Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled Mousehole–Falmouth route** uses the same confirmation and rematching safeguards while also restoring the seven default planning locations.
+Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled Land's End–Falmouth route** uses the same confirmation and rematching safeguards while also restoring the eight default planning locations.
 
 Cloud sync is intentionally not included. IndexedDB remains the source of truth for this version, leaving accounts and shared sync as a later extension.
 

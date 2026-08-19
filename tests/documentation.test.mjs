@@ -22,7 +22,7 @@ test("documentation covers the current navigation, GPS, offline and GPX workflow
   assert.doesNotMatch(architecture, /Edit-screen verification links/);
   assert.match(guide, /Wait for \*\*Offline ready\*\*/);
   assert.match(guide, /5 km of the new route/);
-  assert.match(guide, /Restore bundled Mousehole–Falmouth route/);
+  assert.match(guide, /Restore bundled Land's End–Falmouth route/);
   assert.match(guide, /There is no account, cloud sync, plan export or cross-device backup/);
   assert.match(guide, /new website address has its own IndexedDB storage/);
 });

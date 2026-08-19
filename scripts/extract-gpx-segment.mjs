@@ -6,11 +6,13 @@ const output = process.argv[3] ?? "app/data/swcp-route.json";
 if (!input) throw new Error("Usage: npm run route:segment -- source.gpx [output.json]");
 
 // Place coordinates resolved from OpenStreetMap/Nominatim, then snapped to the GPX below.
-const startSeed = { name: "Mousehole", lat: 50.0839943, lng: -5.5389614 };
+const startSeed = { name: "Land's End", lat: 50.0662, lng: -5.7148 };
+const mouseholeSeed = { name: "Mousehole", lat: 50.0839943, lng: -5.5389614 };
 const penzanceSeed = { name: "Penzance", lat: 50.1194794, lng: -5.5352463 };
 const endSeed = { name: "Falmouth", lat: 50.1552197, lng: -5.0688262 };
 const checkpointSeeds = [
   startSeed,
+  mouseholeSeed,
   penzanceSeed,
   { name: "Porthleven", lat: 50.0849174, lng: -5.3166558 },
   { name: "Lizard Point", lat: 49.9588849, lng: -5.2063788 },
@@ -58,9 +60,9 @@ const nearest = (seed) => indexed.reduce((best, candidate) => {
 const start = nearest(startSeed);
 const end = nearest(endSeed);
 if (start.trackIndex > end.trackIndex || (start.trackIndex === end.trackIndex && start.pointIndex >= end.pointIndex)) {
-  throw new Error("The requested segment is not ordered from Mousehole to Falmouth in this GPX.");
+  throw new Error("The requested segment is not ordered from Land's End to Falmouth in this GPX.");
 }
-if (start.distance > 0.5 || end.distance > 0.5) throw new Error("The GPX does not pass close enough to Mousehole and Falmouth.");
+if (start.distance > 0.5 || end.distance > 0.5) throw new Error("The GPX does not pass close enough to Land's End and Falmouth.");
 
 const selectedTracks = tracks
   .slice(start.trackIndex, end.trackIndex + 1)
@@ -95,12 +97,12 @@ const checkpoints = checkpointSeeds.map((seed) => {
 }).sort((a, b) => a.distanceKm - b.distanceKm);
 
 const route = {
-  id: "swcp-gpx-mousehole-falmouth-2026-04",
-  name: "South West Coast Path: Mousehole to Falmouth",
+  id: "swcp-gpx-lands-end-falmouth-2026-04",
+  name: "South West Coast Path: Land's End to Falmouth",
   officialDistanceKm: Number(cumulative.toFixed(1)),
   generatedAt: new Date().toISOString(),
   elevationSource: "Supplied GPX elevation (GPS Visualizer)",
-  geometrySource: "Supplied South West Coast Path GPX, Mousehole to Falmouth",
+  geometrySource: "Supplied South West Coast Path GPX, Land's End to Falmouth",
   points: routePoints,
   checkpoints,
 };
