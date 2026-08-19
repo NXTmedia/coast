@@ -37,6 +37,7 @@ Tap the location button at the top right and allow location access when Safari a
 - the marker on the selected day's elevation profile;
 - progress through the selected stage;
 - progress across all planned sections;
+- ascent remaining against total ascent for the selected stage and the whole plan;
 - distance from the trail and the phone's reported accuracy.
 
 The profile marker appears only when the matched position lies inside the selected stage. Tap the top-right location button again to stop the active reading.

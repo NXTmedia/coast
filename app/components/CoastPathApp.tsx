@@ -23,8 +23,8 @@ import {
   fillWalkingDayDates, localDateKey, plannedProgressKm, totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
-  ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, pointsForDay, prepareRouteImport,
-  routePointAt, simulatedGpsNearCheckpoint,
+  ascentBetween, ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, plannedAscentM, pointsForDay,
+  prepareRouteImport, routePointAt, simulatedGpsNearCheckpoint,
 } from "../lib/route";
 import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
 
@@ -34,6 +34,7 @@ type OfflineState = "preparing" | "ready" | "limited";
 type LocationEditorState = { mode: "new" | "edit"; originalName?: string; name: string; lat: string; lng: string } | null;
 
 const formatKm = (value: number, digits = 1) => `${value.toFixed(digits)} km`;
+const formatMetres = (value: number) => `${Math.round(value).toLocaleString()} m`;
 const formatDate = (value: string) => value
   ? new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${value}T12:00:00`))
   : "Date not set";
@@ -136,6 +137,21 @@ export function CoastPathApp() {
   const dayProgress = Math.max(0, Math.min(dayDistance, rawDayProgress));
   const plannedDistance = totalPlannedDistanceKm(days);
   const planProgress = matched ? plannedProgressKm(days, matched.distanceKm) : 0;
+  const dayAscentTotal = useMemo(
+    () => route && selectedDay ? ascentBetween(route, selectedDay.startDistanceKm, selectedDay.endDistanceKm) : 0,
+    [route, selectedDay],
+  );
+  const dayAscentRemaining = useMemo(
+    () => route && selectedDay
+      ? ascentBetween(route, Math.max(selectedDay.startDistanceKm, matched?.distanceKm ?? selectedDay.startDistanceKm), selectedDay.endDistanceKm)
+      : 0,
+    [route, selectedDay, matched],
+  );
+  const planAscentTotal = useMemo(() => route ? plannedAscentM(route, days) : 0, [route, days]);
+  const planAscentRemaining = useMemo(
+    () => route ? plannedAscentM(route, days, matched?.distanceKm) : 0,
+    [route, days, matched],
+  );
   const chartData = dayPoints.map((point) => ({
     ...point,
     dayKm: Number((point.distanceKm - (selectedDay?.startDistanceKm ?? 0)).toFixed(2)),
@@ -470,7 +486,7 @@ export function CoastPathApp() {
                   <p className="eyebrow profile-day-line"><span>Day {selectedDay.order}</span><time dateTime={selectedDay.date || undefined}>{formatDate(selectedDay.date)}</time></p>
                   <h2>{selectedDay.startName} <ArrowRight /> {selectedDay.endName}</h2>
                 </div>
-                <div className="climb-summary"><span><ArrowUp /> {climbing.ascent.toLocaleString()} m</span><span><ArrowDown /> {climbing.descent.toLocaleString()} m</span><span><Mountain /> {highestPoint.toLocaleString()} m</span></div>
+                <div className="climb-summary"><span><ArrowUp /> {formatMetres(dayAscentTotal)}</span><span><ArrowDown /> {climbing.descent.toLocaleString()} m</span><span><Mountain /> {highestPoint.toLocaleString()} m</span></div>
               </div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
@@ -500,7 +516,8 @@ export function CoastPathApp() {
                 <div className="progress-heading"><div><p className="eyebrow"><Footprints size={14} /> Day progress</p><h2>{formatKm(dayProgress)} <small>of {formatKm(dayDistance)}</small></h2></div><strong>{Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}%</strong></div>
                 <div className="progress-track" aria-label={`${Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}% of this day completed`}><span style={{ width: `${dayDistance ? dayProgress / dayDistance * 100 : 0}%` }} /></div>
                 <div className="progress-details">
-                  <div><span>Whole plan</span><strong>{gps ? `${formatKm(planProgress)} / ${formatKm(plannedDistance)}` : formatKm(plannedDistance)}</strong><small>{gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining` : `${days.length} planned ${days.length === 1 ? "day" : "days"}`}</small></div>
+                  <div><span>Day ascent</span><strong>{formatMetres(dayAscentRemaining)} left</strong><small>of {formatMetres(dayAscentTotal)} total</small></div>
+                  <div><span>Whole plan</span><strong>{gps ? `${formatKm(planProgress)} / ${formatKm(plannedDistance)}` : formatKm(plannedDistance)}</strong><small>{gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining` : `${days.length} planned ${days.length === 1 ? "day" : "days"}`}</small><small className="ascent-detail"><ArrowUp /> {formatMetres(planAscentRemaining)} left of {formatMetres(planAscentTotal)} total</small></div>
                   {matched && <div><span>Trail match</span><strong>{Math.round(matched.offRouteM)} m away</strong><small>{simulateGps ? `Simulated ${simulationLocationLabel}` : `iPhone accuracy ±${Math.round(gps?.accuracy ?? 0)} m`}</small></div>}
                 </div>
               </div>

@@ -19,6 +19,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - GPS simulation about 3 km beyond Lizard Point for testing without sharing device location
 - Optional live GPS check on the Locations screen showing the phone's latitude, longitude and reported accuracy
 - Nearest-point matching and progress for the selected day and total planned sections
+- Remaining ascent against total ascent for the selected day and the whole plan
 - Start and end location links that open their exact coordinates in OS Maps with Leisure mapping at zoom level 13
 - Previous/next day controls and automatic selection of today's dated walk
 - One itinerary start date with automatically calculated stage dates

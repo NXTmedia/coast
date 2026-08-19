@@ -75,12 +75,14 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 .progress-heading > strong { color: var(--coral); font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
 .progress-track { width: 100%; height: 7px; background: #d9e5de; border-radius: 999px; overflow: hidden; margin-top: 14px; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: var(--coral); transition: width .35s ease; }
-.progress-details { display: flex; gap: 28px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
+.progress-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 18px 28px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
 .progress-details > div { min-width: 0; }
 .progress-details span, .progress-details strong, .progress-details small { display: block; }
 .progress-details span { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
 .progress-details strong { margin-top: 2px; font-size: 14px; }
 .progress-details small { color: var(--muted); margin-top: 2px; font-size: 10px; }
+.progress-details .ascent-detail { margin-top: 5px; color: #a95036; display: flex; align-items: center; gap: 3px; font-weight: 750; }
+.progress-details .ascent-detail svg { width: 12px; height: 12px; flex: 0 0 auto; }
 .simulation-toggle { min-height: 48px; padding: 7px 10px; border: 1px solid #cbdad2; border-radius: 13px; background: rgba(255,255,255,.72); display: flex; align-items: center; gap: 9px; cursor: pointer; }
 .simulation-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .toggle-track { width: 36px; height: 22px; padding: 3px; border-radius: 999px; background: #bdc9c3; transition: background .2s ease; flex: 0 0 auto; }

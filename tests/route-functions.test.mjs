@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ascentDescent, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition, osMapsUrl, prepareRouteImport,
-  pointsForDay, simulatedGpsNearCheckpoint,
+  ascentBetween, ascentDescent, migrateCheckpointsToRoute, migrateDaysToRoute, nearestRoutePosition, osMapsUrl,
+  plannedAscentM, prepareRouteImport, pointsForDay, simulatedGpsNearCheckpoint,
 } from "../app/lib/route.ts";
 
 const route = {
@@ -31,6 +31,30 @@ test("day profiles are sliced by distance and ascent/descent is calculated", () 
   const profile = pointsForDay(route, 0, 10);
   assert.equal(profile.length, 3);
   assert.deepEqual(ascentDescent(profile), { ascent: 30, descent: 20 });
+});
+
+test("remaining ascent includes partial climbs for a day and the whole plan", () => {
+  const climbingRoute = {
+    ...route,
+    officialDistanceKm: 30,
+    points: [
+      { lng: -4, lat: 50, elevationM: 0, distanceKm: 0 },
+      { lng: -3.9, lat: 50, elevationM: 100, distanceKm: 10 },
+      { lng: -3.8, lat: 50, elevationM: 50, distanceKm: 20 },
+      { lng: -3.7, lat: 50, elevationM: 150, distanceKm: 30 },
+    ],
+  };
+  const plannedDays = [
+    { id: "one", order: 1, date: "", startName: "A", endName: "B", startDistanceKm: 0, endDistanceKm: 10 },
+    { id: "two", order: 2, date: "", startName: "C", endName: "D", startDistanceKm: 20, endDistanceKm: 30 },
+  ];
+
+  assert.equal(ascentBetween(climbingRoute, 0, 10), 100);
+  assert.equal(ascentBetween(climbingRoute, 5, 10), 50);
+  assert.equal(plannedAscentM(climbingRoute, plannedDays), 200);
+  assert.equal(plannedAscentM(climbingRoute, plannedDays, 5), 150);
+  assert.equal(plannedAscentM(climbingRoute, plannedDays, 15), 100);
+  assert.equal(plannedAscentM(climbingRoute, plannedDays, 35), 0);
 });
 
 test("GPS simulation creates an iPhone-like reading 3 km after Lizard Point", () => {

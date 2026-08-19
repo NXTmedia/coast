@@ -177,6 +177,13 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /profile-day-navigation/);
   assert.match(app, /<Mountain \/> \{highestPoint\.toLocaleString\(\)\} m/);
   assert.match(app, /progress-details/);
+  assert.match(app, /<span>Day ascent<\/span>/);
+  assert.match(app, /formatMetres\(dayAscentRemaining\).*left/);
+  assert.match(app, /formatMetres\(planAscentRemaining\).*left of.*formatMetres\(planAscentTotal\).*total/);
+  assert.match(app, /plannedAscentM\(route, days, matched\?\.distanceKm\)/);
+  assert.match(styles, /\.progress-details \.ascent-detail/);
+  assert.match(matching, /export function ascentBetween/);
+  assert.match(matching, /export function plannedAscentM/);
   assert.doesNotMatch(app, /Use your iPhone location to calculate progress/);
   assert.doesNotMatch(app, /<Metric /);
   assert.doesNotMatch(app, /summary-stats/);

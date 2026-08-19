@@ -17,6 +17,7 @@ test("documentation covers the current navigation, GPS, offline and GPX workflow
   assert.match(readme, /publish directory is `dist`/);
   assert.match(architecture, /Track, Plan and Locations/);
   assert.match(architecture, /real-GPS coordinate check/);
+  assert.match(architecture, /remaining whole-plan ascent/);
   assert.match(architecture, /committed in one IndexedDB transaction/);
   assert.match(architecture, /OS Maps with `zoom=13\.0000`, `style=Leisure` and `type=2d`/);
   assert.doesNotMatch(architecture, /Edit-screen verification links/);

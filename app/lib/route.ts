@@ -139,13 +139,43 @@ export function ascentDescent(points: RoutePoint[]) {
   return { ascent: Math.round(ascent), descent: Math.round(descent) };
 }
 
+export function ascentBetween(route: TrailRoute, startDistanceKm: number, endDistanceKm: number): number {
+  if (endDistanceKm <= startDistanceKm) return 0;
+  let ascent = 0;
+  let previous: RoutePoint | null = null;
+  for (const point of route.points) {
+    if (!point) { previous = null; continue; }
+    if (previous) {
+      const segmentStart = Math.max(startDistanceKm, previous.distanceKm);
+      const segmentEnd = Math.min(endDistanceKm, point.distanceKm);
+      const segmentDistance = point.distanceKm - previous.distanceKm;
+      if (segmentEnd > segmentStart && segmentDistance > 0) {
+        const elevationChange = (point.elevationM - previous.elevationM)
+          * ((segmentEnd - segmentStart) / segmentDistance);
+        if (elevationChange > 0) ascent += elevationChange;
+      }
+    }
+    previous = point;
+  }
+  return ascent;
+}
+
+export function plannedAscentM(route: TrailRoute, days: WalkingDay[], currentDistanceKm?: number): number {
+  return days.reduce((total, day) => total + ascentBetween(
+    route,
+    currentDistanceKm === undefined ? day.startDistanceKm : Math.max(day.startDistanceKm, currentDistanceKm),
+    day.endDistanceKm,
+  ), 0);
+}
+
 export function importGpx(text: string, filename: string): TrailRoute {
   const document = new DOMParser().parseFromString(text, "application/xml");
   if (document.querySelector("parsererror")) throw new Error("This does not appear to be a valid GPX file.");
   const collection = gpx(document);
-  const geometries = collection.features.flatMap((feature) => {
-    if (feature.geometry.type === "LineString") return [feature.geometry.coordinates];
-    if (feature.geometry.type === "MultiLineString") return feature.geometry.coordinates;
+  const features = collection.features as Array<{ geometry: { type: string; coordinates: unknown } }>;
+  const geometries = features.flatMap((feature): number[][][] => {
+    if (feature.geometry.type === "LineString") return [feature.geometry.coordinates as number[][]];
+    if (feature.geometry.type === "MultiLineString") return feature.geometry.coordinates as number[][][];
     return [];
   });
   if (!geometries.length) throw new Error("No track or route was found in that GPX file.");
