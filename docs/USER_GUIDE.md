@@ -11,20 +11,21 @@ The interface, bundled Land's End-to-Falmouth route, elevation profile and saved
 
 ## Plan the walk
 
-The **Plan** screen has one walk start date. Each stage occupies one walking day. Later dates are calculated automatically from the stage order.
+The **Plan** screen has one walk start date. Each stage occupies one walking day. Later dates are calculated automatically from the stage order. The main **Add** button opens a menu for a stage, point of interest or break day.
 
-- Add or edit a stage by selecting its start and end from the saved Locations list.
+- Choose **Add → Stage** to create a stage, then select its start and end from the saved Locations list.
 - Use **Start where the previous day ended** to join consecutive stages.
 - Drag stages to reorder them; numbering and dates update automatically.
-- Add a break after a stage with its break-day button. Every later date moves forward by one day.
-- Remove a break to close the date gap again.
+- Choose **Add → Break day**, then select the stage after which to take a day off. Every later date moves forward by one day. The former coffee-cup button on every stage has been removed.
+- Remove a break with the close button on its break-day row to close the date gap again.
+- Choose **Add → Point of interest**, then choose any saved Location. Planned points are listed below the stages in route order and can be removed there.
 - Tap a stage's delete icon, then use the inline **Delete stage?** confirmation. **Cancel** leaves it unchanged.
 
 Stage names and coordinates are not edited here. Manage them on **Locations**.
 
 ## Manage locations
 
-The **Locations** screen contains the named points available to the stage editor. Add a name, latitude and longitude; Coastline stores the closest projected point on the active GPX route. Locations are sorted by distance along the route. A location used by a planned stage cannot be deleted until that stage is changed.
+The **Locations** screen contains the named points available to the stage editor and point-of-interest selector. Add a name, latitude and longitude; Coastline stores the closest projected point on the active GPX route. Locations are sorted by distance along the route. A location used by a planned stage or point of interest cannot be deleted until that plan item is changed or removed. Renaming a location also updates its planned point of interest.
 
 The external-link button beside a location opens its matched coordinate in OS Maps using Leisure style, 2D view and zoom level 13. At least two saved locations must remain.
 
@@ -35,9 +36,10 @@ Deleting a saved location also requires the inline **Delete location?** confirma
 Tap the location button at the top right and allow location access when Safari asks. Coastline requests high accuracy, matches the reading to the nearest point on the route and updates:
 
 - the marker on the selected day's elevation profile;
-- progress through the selected stage;
-- progress across all planned sections;
-- ascent remaining against total ascent for the selected stage and the whole plan;
+- elapsed and remaining distance through the selected stage;
+- the amount and percentage of ascent left on the selected stage;
+- distance to the next planned point of interest ahead;
+- distance and ascent across all planned sections in a separate **Total walk** panel;
 - distance from the trail and the phone's reported accuracy.
 
 The profile marker appears only when the matched position lies inside the selected stage. Tap the top-right location button again to stop the active reading.
@@ -64,7 +66,7 @@ Cancel to leave all local data unchanged. Confirm to save the imported route and
 
 ## Device-local data and limitations
 
-Routes, locations, stages and settings are stored in IndexedDB on the current device and browser. There is no account, cloud sync, plan export or cross-device backup. Clearing Safari website data can remove the saved plan.
+Routes, locations, stages, points of interest and settings are stored in IndexedDB on the current device and browser. There is no account, cloud sync, plan export or cross-device backup. Clearing Safari website data can remove the saved plan.
 
 An iPhone web app can receive location updates while it is active, but iOS may suspend browser activity in the background or when the screen is locked. Keep the app open while using live progress.
 

@@ -7,6 +7,8 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - A Land's End-to-Falmouth starter day, plus create/edit/delete planning tools
 - One-tap “start where the previous day ended” planning
 - Walking-stage start and end selection from the saved Locations list
+- One Plan **Add** menu for stages, saved-location points of interest and break days
+- Offline-persisted points of interest with distance to the next stop on Track
 - Custom named locations with coordinate-to-path matching on the Locations screen
 - Editable saved-location list with coordinate-to-GPX matching
 - Protection against deleting locations that are still used by planned stages
@@ -18,6 +20,8 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - High-accuracy iPhone browser location via `watchPosition`
 - GPS simulation about 3 km beyond Lizard Point for testing without sharing device location
 - Optional live GPS check on the Locations screen showing the phone's latitude, longitude and reported accuracy
+- Separate Track panels for day distance, day ascent, the next point of interest and the total walk
+- Elapsed and remaining daily distance, plus percentage of the day's ascent left
 - Nearest-point matching and progress for the selected day and total planned sections
 - Remaining ascent against total ascent for the selected day and the whole plan
 - Start and end location links that open their exact coordinates in OS Maps with Leisure mapping at zoom level 13
@@ -57,7 +61,7 @@ See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for installation, planning, GPS, of
 
 ## Offline behaviour
 
-The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking plans are stored in IndexedDB. Imported GPX routes are also retained in IndexedDB on that device. Wait until the header says **Offline ready** before closing the first session or testing an offline relaunch.
+The bundled route is compiled into the app, so startup never waits for a route download. On the first successful visit, the app shell is also cached and walking stages, break days and points of interest are stored in IndexedDB. Imported GPX routes are also retained in IndexedDB on that device. Wait until the header says **Offline ready** before closing the first session or testing an offline relaunch.
 
 The automated offline regression suite runs the service worker inside a simulated browser cache. It verifies complete first-time preparation, an iPhone Home Screen-style relaunch with the network disabled, cached navigation and scripts, recovery when connectivity returns, and rejection of incomplete updates before they can replace a working cache. It runs as part of `npm test`.
 

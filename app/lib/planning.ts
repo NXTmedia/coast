@@ -1,4 +1,4 @@
-import type { WalkingDay } from "../types";
+import type { Checkpoint, PlannedPointOfInterest, WalkingDay } from "../types";
 
 export function dayDistanceKm(day: WalkingDay): number {
   return Math.max(0, day.endDistanceKm - day.startDistanceKm);
@@ -53,4 +53,29 @@ export function dayIdContainingDistance(days: WalkingDay[], distanceKm: number):
 
 export function daysUsingLocation(days: WalkingDay[], locationName: string): WalkingDay[] {
   return days.filter((day) => day.startName === locationName || day.endName === locationName);
+}
+
+export type ResolvedPointOfInterest = PlannedPointOfInterest & Checkpoint;
+
+export function resolvePointsOfInterest(
+  pointsOfInterest: PlannedPointOfInterest[],
+  checkpoints: Checkpoint[],
+): ResolvedPointOfInterest[] {
+  return pointsOfInterest
+    .map((point) => {
+      const location = checkpoints.find((checkpoint) => checkpoint.name === point.locationName);
+      return location ? { ...point, ...location } : null;
+    })
+    .filter((point): point is ResolvedPointOfInterest => point !== null)
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+export function nextPointOfInterest(
+  pointsOfInterest: PlannedPointOfInterest[],
+  checkpoints: Checkpoint[],
+  trailDistanceKm: number,
+): { point: ResolvedPointOfInterest; distanceRemainingKm: number } | null {
+  const point = resolvePointsOfInterest(pointsOfInterest, checkpoints)
+    .find((candidate) => candidate.distanceKm > trailDistanceKm + 0.01);
+  return point ? { point, distanceRemainingKm: point.distanceKm - trailDistanceKm } : null;
 }

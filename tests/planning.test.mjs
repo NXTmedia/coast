@@ -9,7 +9,9 @@ import {
   daysUsingLocation,
   fillWalkingDayDates,
   localDateKey,
+  nextPointOfInterest,
   plannedProgressKm,
+  resolvePointsOfInterest,
   totalPlannedDistanceKm,
 } from "../app/lib/planning.ts";
 
@@ -85,4 +87,24 @@ test("locations used by planned stages are identified before deletion", () => {
   ];
   assert.deepEqual(daysUsingLocation(days, "Penzance").map(({ id }) => id), ["one", "two"]);
   assert.deepEqual(daysUsingLocation(days, "Falmouth"), []);
+});
+
+test("planned points of interest resolve from saved locations and select the next one ahead", () => {
+  const checkpoints = [
+    { name: "Penzance", lat: 50.1, lng: -5.5, distanceKm: 26.5 },
+    { name: "Porthleven", lat: 50.08, lng: -5.31, distanceKm: 50.2 },
+    { name: "Lizard Point", lat: 49.96, lng: -5.2, distanceKm: 77.8 },
+  ];
+  const points = [
+    { id: "lizard", locationName: "Lizard Point" },
+    { id: "missing", locationName: "Not on this route" },
+    { id: "porthleven", locationName: "Porthleven" },
+  ];
+
+  assert.deepEqual(resolvePointsOfInterest(points, checkpoints).map(({ name }) => name), ["Porthleven", "Lizard Point"]);
+  assert.deepEqual(nextPointOfInterest(points, checkpoints, 45), {
+    point: { id: "porthleven", locationName: "Porthleven", ...checkpoints[1] },
+    distanceRemainingKm: 5.200000000000003,
+  });
+  assert.equal(nextPointOfInterest(points, checkpoints, 80), null);
 });

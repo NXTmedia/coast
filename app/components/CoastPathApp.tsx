@@ -20,13 +20,14 @@ import { db, getBundledRoute, loadInitialData, replaceRouteAndDays, savePlanStar
 import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
   breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
-  fillWalkingDayDates, localDateKey, plannedProgressKm, totalPlannedDistanceKm,
+  fillWalkingDayDates, localDateKey, nextPointOfInterest, plannedProgressKm, resolvePointsOfInterest,
+  totalPlannedDistanceKm,
 } from "../lib/planning";
 import {
   ascentBetween, ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, plannedAscentM, pointsForDay,
   prepareRouteImport, routePointAt, simulatedGpsNearCheckpoint,
 } from "../lib/route";
-import type { Checkpoint, GpsReading, TrailRoute, WalkingDay } from "../types";
+import type { Checkpoint, GpsReading, PlannedPointOfInterest, TrailRoute, WalkingDay } from "../types";
 
 type Tab = "track" | "plan" | "locations";
 type EditorState = { mode: "new" | "edit"; day: WalkingDay } | null;
@@ -42,6 +43,7 @@ const formatDate = (value: string) => value
 export function CoastPathApp() {
   const [route, setRoute] = useState<TrailRoute | null>(null);
   const [days, setDays] = useState<WalkingDay[]>([]);
+  const [pointsOfInterest, setPointsOfInterest] = useState<PlannedPointOfInterest[]>([]);
   const [planStartDate, setPlanStartDate] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [tab, setTab] = useState<Tab>("track");
@@ -56,6 +58,11 @@ export function CoastPathApp() {
   const [persistentStorageReady, setPersistentStorageReady] = useState(true);
   const [editor, setEditor] = useState<EditorState>(null);
   const [locationEditor, setLocationEditor] = useState<LocationEditorState>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [poiEditorOpen, setPoiEditorOpen] = useState(false);
+  const [poiLocationName, setPoiLocationName] = useState("");
+  const [breakEditorOpen, setBreakEditorOpen] = useState(false);
+  const [breakAfterDayId, setBreakAfterDayId] = useState("");
   const [pendingDayDeleteId, setPendingDayDeleteId] = useState<string | null>(null);
   const [pendingLocationDeleteName, setPendingLocationDeleteName] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -68,8 +75,8 @@ export function CoastPathApp() {
 
   useEffect(() => {
     loadInitialData()
-      .then(({ route: loadedRoute, days: loadedDays, planStartDate: loadedStartDate, storageReady }) => {
-        setRoute(loadedRoute); setDays(loadedDays); setPlanStartDate(loadedStartDate); setSelectedId(dayIdForDate(loadedDays, localDateKey()));
+      .then(({ route: loadedRoute, days: loadedDays, pointsOfInterest: loadedPoints, planStartDate: loadedStartDate, storageReady }) => {
+        setRoute(loadedRoute); setDays(loadedDays); setPointsOfInterest(loadedPoints); setPlanStartDate(loadedStartDate); setSelectedId(dayIdForDate(loadedDays, localDateKey()));
         setPersistentStorageReady(storageReady);
       })
       .catch((error) => setLoadingError(error instanceof Error ? error.message : "Unable to load the trail."));
@@ -151,6 +158,21 @@ export function CoastPathApp() {
   const planAscentRemaining = useMemo(
     () => route ? plannedAscentM(route, days, matched?.distanceKm) : 0,
     [route, days, matched],
+  );
+  const dayDistanceRemaining = Math.max(0, dayDistance - dayProgress);
+  const dayDistancePercent = Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0);
+  const dayAscentCompleted = Math.max(0, dayAscentTotal - dayAscentRemaining);
+  const dayAscentPercentLeft = Math.round(dayAscentTotal ? dayAscentRemaining / dayAscentTotal * 100 : 0);
+  const planDistanceRemaining = Math.max(0, plannedDistance - planProgress);
+  const planDistancePercent = Math.round(plannedDistance ? planProgress / plannedDistance * 100 : 0);
+  const planAscentPercentLeft = Math.round(planAscentTotal ? planAscentRemaining / planAscentTotal * 100 : 0);
+  const resolvedPointsOfInterest = useMemo(
+    () => route ? resolvePointsOfInterest(pointsOfInterest, route.checkpoints) : [],
+    [route, pointsOfInterest],
+  );
+  const nextPoi = useMemo(
+    () => route ? nextPointOfInterest(pointsOfInterest, route.checkpoints, matched?.distanceKm ?? selectedDay?.startDistanceKm ?? 0) : null,
+    [route, pointsOfInterest, matched, selectedDay],
   );
   const chartData = dayPoints.map((point) => ({
     ...point,
@@ -295,14 +317,56 @@ export function CoastPathApp() {
     setNotice(value ? "Start date saved and the itinerary rescheduled." : "Start date cleared.");
   };
 
-  const toggleBreakAfter = async (dayId: string) => {
+  const setBreakAfter = async (dayId: string, breakAfter: boolean) => {
     const updated = fillWalkingDayDates(days.map((day, index) => ({
       ...day,
-      breakAfter: day.id === dayId && index < days.length - 1 ? !day.breakAfter : day.breakAfter,
+      breakAfter: day.id === dayId && index < days.length - 1 ? breakAfter : day.breakAfter,
     })), planStartDate);
     if (updated.length) await db.days.bulkPut(updated);
     setDays(updated);
-    setNotice(updated.find((day) => day.id === dayId)?.breakAfter ? "Break day added; later dates moved on by one day." : "Break day removed; later dates recalculated.");
+    setNotice(breakAfter ? "Break day added; later dates moved on by one day." : "Break day removed; later dates recalculated.");
+  };
+
+  const openBreakEditor = () => {
+    const eligibleDay = days.slice(0, -1).find((day) => !day.breakAfter);
+    if (!eligibleDay) {
+      setNotice(days.length < 2 ? "Add at least two walking stages before inserting a break day." : "Every available break position is already in use.");
+      return;
+    }
+    setBreakAfterDayId(eligibleDay.id);
+    setBreakEditorOpen(true);
+  };
+
+  const saveBreakDay = async () => {
+    if (!breakAfterDayId) return;
+    await setBreakAfter(breakAfterDayId, true);
+    setBreakEditorOpen(false);
+  };
+
+  const openPointOfInterestEditor = () => {
+    if (!route) return;
+    const available = route.checkpoints.find((location) => !pointsOfInterest.some((point) => point.locationName === location.name));
+    if (!available) {
+      setNotice("Every saved location is already a point of interest.");
+      return;
+    }
+    setPoiLocationName(available.name);
+    setPoiEditorOpen(true);
+  };
+
+  const savePointOfInterest = async () => {
+    if (!poiLocationName || pointsOfInterest.some((point) => point.locationName === poiLocationName)) return;
+    const point = { id: crypto.randomUUID(), locationName: poiLocationName };
+    await db.pointsOfInterest.put(point);
+    setPointsOfInterest((current) => [...current, point]);
+    setPoiEditorOpen(false);
+    setNotice(`${poiLocationName} added as a point of interest.`);
+  };
+
+  const removePointOfInterest = async (point: PlannedPointOfInterest) => {
+    await db.pointsOfInterest.delete(point.id);
+    setPointsOfInterest((current) => current.filter((candidate) => candidate.id !== point.id));
+    setNotice(`${point.locationName} removed from the points of interest.`);
   };
 
   const reorderStages = async ({ active, over }: DragEndEvent) => {
@@ -371,6 +435,9 @@ export function CoastPathApp() {
       }));
       if (updatedDays.length) await db.days.bulkPut(updatedDays);
       setDays(updatedDays);
+      const renamedPoints = pointsOfInterest.map((point) => point.locationName === locationEditor.originalName ? { ...point, locationName: name } : point);
+      if (renamedPoints.length) await db.pointsOfInterest.bulkPut(renamedPoints);
+      setPointsOfInterest(renamedPoints);
     }
     setLocationEditor(null);
     setNotice(`${name} saved at ${match.distanceKm.toFixed(1)} km · matched ${Math.round(match.offRouteM)} m from the entered coordinate.`);
@@ -380,9 +447,15 @@ export function CoastPathApp() {
     if (!route) return;
     if (route.checkpoints.length <= 2) { setPendingLocationDeleteName(null); setNotice("Keep at least two saved locations for planning a walking day."); return; }
     const affectedDays = daysUsingLocation(days, location.name);
+    const affectedPoints = pointsOfInterest.filter((point) => point.locationName === location.name);
     if (affectedDays.length) {
       setPendingLocationDeleteName(null);
       setNotice(`${location.name} is used by ${affectedDays.length} planned ${affectedDays.length === 1 ? "stage" : "stages"}. Change those stages before deleting it.`);
+      return;
+    }
+    if (affectedPoints.length) {
+      setPendingLocationDeleteName(null);
+      setNotice(`${location.name} is a planned point of interest. Remove it from the Plan screen before deleting it.`);
       return;
     }
     const updatedRoute = await saveRouteCheckpoints(route, route.checkpoints.filter((point) => point.name !== location.name));
@@ -412,7 +485,7 @@ export function CoastPathApp() {
       }
       await replaceRouteAndDays(prepared.route, prepared.days);
       const seeded = await loadInitialData();
-      setRoute(seeded.route); setDays(seeded.days); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
+      setRoute(seeded.route); setDays(seeded.days); setPointsOfInterest(seeded.pointsOfInterest); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
       setNotice(`${imported.name} is ready offline. Preserved ${prepared.matchedLocationCount} locations and ${prepared.days.length} planned stages.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "The GPX file could not be imported.");
@@ -445,7 +518,7 @@ export function CoastPathApp() {
     const restoredRoute = { ...bundled, checkpoints: [...checkpointsByName.values()].sort((a, b) => a.distanceKm - b.distanceKm) };
     await replaceRouteAndDays(restoredRoute, prepared.days);
     const seeded = await loadInitialData();
-    setRoute(seeded.route); setDays(seeded.days); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
+    setRoute(seeded.route); setDays(seeded.days); setPointsOfInterest(seeded.pointsOfInterest); setPlanStartDate(seeded.planStartDate); setSelectedId(dayIdForDate(seeded.days, localDateKey()));
     setNotice(`The bundled route is restored. Preserved ${prepared.matchedLocationCount} locations and ${prepared.days.length} planned stages.`);
   };
 
@@ -511,16 +584,31 @@ export function CoastPathApp() {
               </div>
             </section>
 
-            <section className="tracking-card panel">
-              <div className="tracking-copy">
-                <div className="progress-heading"><div><p className="eyebrow"><Footprints size={14} /> Day progress</p><h2>{formatKm(dayProgress)} <small>of {formatKm(dayDistance)}</small></h2></div><strong>{Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}%</strong></div>
-                <div className="progress-track" aria-label={`${Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0)}% of this day completed`}><span style={{ width: `${dayDistance ? dayProgress / dayDistance * 100 : 0}%` }} /></div>
-                <div className="progress-details">
-                  <div><span>Day ascent</span><strong>{formatMetres(dayAscentRemaining)} left</strong><small>of {formatMetres(dayAscentTotal)} total</small></div>
-                  <div><span>Whole plan</span><strong>{gps ? `${formatKm(planProgress)} / ${formatKm(plannedDistance)}` : formatKm(plannedDistance)}</strong><small>{gps ? `${Math.max(0, plannedDistance - planProgress).toFixed(1)} km remaining` : `${days.length} planned ${days.length === 1 ? "day" : "days"}`}</small><small className="ascent-detail"><ArrowUp /> {formatMetres(planAscentRemaining)} left of {formatMetres(planAscentTotal)} total</small></div>
-                  {matched && <div><span>Trail match</span><strong>{Math.round(matched.offRouteM)} m away</strong><small>{simulateGps ? `Simulated ${simulationLocationLabel}` : `iPhone accuracy ±${Math.round(gps?.accuracy ?? 0)} m`}</small></div>}
-                </div>
+            <section className="tracking-card distance-progress-card panel">
+              <div className="progress-heading"><div><p className="eyebrow"><Footprints size={14} /> Day distance</p><h2>{formatKm(dayProgress)} <small>elapsed</small></h2></div><strong>{dayDistancePercent}%</strong></div>
+              <div className="progress-track" aria-label={`${dayDistancePercent}% of this day completed`}><span style={{ width: `${dayDistancePercent}%` }} /></div>
+              <div className="progress-pair"><div><span>Remaining</span><strong>{formatKm(dayDistanceRemaining)}</strong></div><div><span>Day total</span><strong>{formatKm(dayDistance)}</strong></div></div>
+            </section>
+
+            <section className="tracking-card ascent-progress-card panel">
+              <div className="progress-heading"><div><p className="eyebrow"><Mountain size={14} /> Day ascent</p><h2>{formatMetres(dayAscentRemaining)} <small>left</small></h2></div><strong>{dayAscentPercentLeft}% left</strong></div>
+              <div className="progress-track ascent-track" aria-label={`${dayAscentPercentLeft}% of this day's ascent left`}><span style={{ width: `${100 - dayAscentPercentLeft}%` }} /></div>
+              <div className="progress-pair"><div><span>Climbed</span><strong>{formatMetres(dayAscentCompleted)}</strong></div><div><span>Day total</span><strong>{formatMetres(dayAscentTotal)}</strong></div></div>
+            </section>
+
+            <section className="next-poi-card panel">
+              <span className="poi-icon"><MapPin /></span>
+              <div><p className="eyebrow">Next point of interest</p>{nextPoi ? <><h2>{nextPoi.point.name}</h2><small>{matched ? "From your live position" : `From the start of ${selectedDay.startName}`}</small></> : <><h2>No upcoming POI</h2><small>Add one from the Plan screen.</small></>}</div>
+              {nextPoi && <strong>{formatKm(nextPoi.distanceRemainingKm)}</strong>}
+            </section>
+
+            <section className="total-walk-card panel">
+              <div className="total-walk-heading"><div><p className="eyebrow"><RouteIcon size={14} /> Your itinerary</p><h2>Total walk</h2></div><strong>{planDistancePercent}%</strong></div>
+              <div className="total-walk-metrics">
+                <div><span>Distance elapsed</span><strong>{formatKm(planProgress)}</strong><small>{formatKm(planDistanceRemaining)} remaining of {formatKm(plannedDistance)}</small></div>
+                <div><span>Ascent left</span><strong>{formatMetres(planAscentRemaining)}</strong><small>{planAscentPercentLeft}% left of {formatMetres(planAscentTotal)}</small></div>
               </div>
+              {matched && <div className="trail-match"><span>Trail match</span><strong>{Math.round(matched.offRouteM)} m away</strong><small>{simulateGps ? `Simulated ${simulationLocationLabel}` : `iPhone accuracy ±${Math.round(gps?.accuracy ?? 0)} m`}</small></div>}
             </section>
 
             {gpsError && <div className="alert"><CircleAlert size={18} /><span>{gpsError}</span></div>}
@@ -541,7 +629,7 @@ export function CoastPathApp() {
 
         {tab === "plan" && (
           <section className="workspace-section">
-            <div className="section-heading"><div><p className="eyebrow"><CalendarDays size={14} /> Your itinerary</p><h1>Planned walking days</h1><p>Set one start date, then drag stages into order. Dates update automatically.</p></div><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add a stage</button></div>
+            <div className="section-heading"><div><p className="eyebrow"><CalendarDays size={14} /> Your itinerary</p><h1>Planned walking days</h1><p>Set one start date, then drag stages into order. Dates update automatically.</p></div><div className="plan-add-control"><button className="primary-button" aria-expanded={addMenuOpen} aria-controls="plan-add-menu" onClick={() => setAddMenuOpen((open) => !open)}><Plus size={18} /> Add</button>{addMenuOpen && <div className="plan-add-menu panel" id="plan-add-menu"><button onClick={() => { setAddMenuOpen(false); openNewDay(); }}><Footprints /><span><strong>Stage</strong><small>Add another walking day</small></span></button><button onClick={() => { setAddMenuOpen(false); openPointOfInterestEditor(); }}><MapPin /><span><strong>Point of interest</strong><small>Choose from saved locations</small></span></button><button onClick={() => { setAddMenuOpen(false); openBreakEditor(); }}><Coffee /><span><strong>Break day</strong><small>Pause between two stages</small></span></button></div>}</div></div>
             <section className="plan-schedule panel">
               <label htmlFor="plan-start-date"><span>Walk start date</span><small>Every stage takes one day. Break days shift all later dates.</small></label>
               <input id="plan-start-date" type="date" value={planStartDate} onChange={(event) => changePlanStartDate(event.target.value)} />
@@ -549,22 +637,22 @@ export function CoastPathApp() {
             <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={reorderStages}>
               <SortableContext items={days.map((day) => day.id)} strategy={verticalListSortingStrategy}>
                 <div className="days-list">
-                  {days.map((day, index) => <SortableDayItem
+                  {days.map((day) => <SortableDayItem
                     key={day.id}
                     day={day}
                     selected={selectedId === day.id}
-                    canAddBreak={index < days.length - 1}
                     onOpen={() => { setSelectedId(day.id); setTab("track"); }}
                     onEdit={() => openDayEditor("edit", day)}
                     deletePending={pendingDayDeleteId === day.id}
                     onRequestDelete={() => { setPendingLocationDeleteName(null); setPendingDayDeleteId(day.id); }}
                     onCancelDelete={() => setPendingDayDeleteId(null)}
                     onConfirmDelete={() => deleteDay(day)}
-                    onToggleBreak={() => toggleBreakAfter(day.id)}
+                    onRemoveBreak={() => setBreakAfter(day.id, false)}
                   />)}
                 </div>
               </SortableContext>
             </DndContext>
+            {resolvedPointsOfInterest.length > 0 && <section className="planned-pois panel"><div className="planned-pois-heading"><div><p className="eyebrow"><MapPin size={14} /> Along the route</p><h2>Points of interest</h2></div><small>{resolvedPointsOfInterest.length} planned</small></div><div className="planned-poi-list">{resolvedPointsOfInterest.map((point) => <article key={point.id}><span className="location-pin"><MapPin /></span><div><strong>{point.name}</strong><small>{point.distanceKm.toFixed(1)} km along the route</small></div><button onClick={() => removePointOfInterest(point)} aria-label={`Remove ${point.name} point of interest`}><X /></button></article>)}</div></section>}
             {!days.length && <div className="empty-state"><MapPin /><h2>Plan your first walking day</h2><p>Pick a start and end point on the trail.</p><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add first day</button></div>}
           </section>
         )}
@@ -633,6 +721,28 @@ export function CoastPathApp() {
         </div>
       )}
 
+      {poiEditorOpen && route && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPoiEditorOpen(false); }}>
+          <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="poi-editor-title">
+            <div className="editor-heading"><div><p className="eyebrow">Plan item</p><h2 id="poi-editor-title">Add a point of interest</h2></div><button className="close-button" onClick={() => setPoiEditorOpen(false)} aria-label="Close point of interest editor"><X /></button></div>
+            <p className="location-editor-note">Choose a place from your saved Locations. Track will show the distance to the next one ahead.</p>
+            <label>Location<select value={poiLocationName} onChange={(event) => setPoiLocationName(event.target.value)}>{route.checkpoints.filter((location) => !pointsOfInterest.some((point) => point.locationName === location.name)).map((location) => <option key={location.name} value={location.name}>{location.name} · {location.distanceKm.toFixed(1)} km</option>)}</select></label>
+            <div className="editor-actions"><button className="secondary-button" onClick={() => setPoiEditorOpen(false)}>Cancel</button><button className="primary-button" onClick={savePointOfInterest}><MapPin size={17} /> Add point</button></div>
+          </section>
+        </div>
+      )}
+
+      {breakEditorOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBreakEditorOpen(false); }}>
+          <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="break-editor-title">
+            <div className="editor-heading"><div><p className="eyebrow">Plan item</p><h2 id="break-editor-title">Add a break day</h2></div><button className="close-button" onClick={() => setBreakEditorOpen(false)} aria-label="Close break day editor"><X /></button></div>
+            <p className="location-editor-note">Choose the stage after which you want a day off. Every later date will move forward by one day.</p>
+            <label>Break position<select value={breakAfterDayId} onChange={(event) => setBreakAfterDayId(event.target.value)}>{days.slice(0, -1).filter((day) => !day.breakAfter).map((day) => <option key={day.id} value={day.id}>After Day {day.order} · {day.endName}</option>)}</select></label>
+            <div className="editor-actions"><button className="secondary-button" onClick={() => setBreakEditorOpen(false)}>Cancel</button><button className="primary-button" onClick={saveBreakDay}><Coffee size={17} /> Add break day</button></div>
+          </section>
+        </div>
+      )}
+
       {locationEditor && route && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLocationEditor(null); }}>
           <section className="day-editor location-editor" role="dialog" aria-modal="true" aria-labelledby="location-editor-title">
@@ -653,17 +763,16 @@ export function CoastPathApp() {
   );
 }
 
-function SortableDayItem({ day, selected, canAddBreak, deletePending, onOpen, onEdit, onRequestDelete, onCancelDelete, onConfirmDelete, onToggleBreak }: {
+function SortableDayItem({ day, selected, deletePending, onOpen, onEdit, onRequestDelete, onCancelDelete, onConfirmDelete, onRemoveBreak }: {
   day: WalkingDay;
   selected: boolean;
-  canAddBreak: boolean;
   deletePending: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void | Promise<void>;
-  onToggleBreak: () => void;
+  onRemoveBreak: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
   const distance = dayDistanceKm(day);
@@ -680,7 +789,6 @@ function SortableDayItem({ day, selected, canAddBreak, deletePending, onOpen, on
         <span className="day-distance"><strong>{distance.toFixed(1)}</strong><small>km</small></span><ChevronRight />
       </button>
       <div className="row-actions">
-        {canAddBreak && <button aria-label={`${day.breakAfter ? "Remove" : "Add"} break day after day ${day.order}`} aria-pressed={Boolean(day.breakAfter)} onClick={onToggleBreak}><Coffee size={17} /></button>}
         <button aria-label={`Edit day ${day.order}`} onClick={onEdit}><Pencil size={17} /></button>
         <button aria-label={`Delete day ${day.order}`} onClick={onRequestDelete}><Trash2 size={17} /></button>
       </div>
@@ -694,7 +802,7 @@ function SortableDayItem({ day, selected, canAddBreak, deletePending, onOpen, on
     {day.breakAfter && <article className="break-day-row">
       <span className="break-icon"><Coffee /></span>
       <span><small>{formatDate(breakDateAfter(day))}</small><strong>Break day</strong></span>
-      <button onClick={onToggleBreak} aria-label={`Remove break day after day ${day.order}`}><X /></button>
+      <button onClick={onRemoveBreak} aria-label={`Remove break day after day ${day.order}`}><X /></button>
     </article>}
   </div>;
 }

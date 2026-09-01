@@ -36,6 +36,11 @@ export type WalkingDay = {
   endCoordinate?: CoordinateMatch;
 };
 
+export type PlannedPointOfInterest = {
+  id: string;
+  locationName: string;
+};
+
 export type CoordinateMatch = {
   lat: number;
   lng: number;

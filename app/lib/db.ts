@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Checkpoint, TrailRoute, WalkingDay } from "../types";
+import type { Checkpoint, PlannedPointOfInterest, TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../data/swcp-route.json";
 import { normalizeDayOrders, removeLegacyStarterDays } from "./days";
 import { fillWalkingDayDates } from "./planning";
@@ -11,6 +11,7 @@ type StoredSetting = { key: string; value: string };
 class CoastPathDatabase extends Dexie {
   routes!: EntityTable<StoredRoute, "key">;
   days!: EntityTable<WalkingDay, "id">;
+  pointsOfInterest!: EntityTable<PlannedPointOfInterest, "id">;
   settings!: EntityTable<StoredSetting, "key">;
 
   constructor() {
@@ -18,6 +19,12 @@ class CoastPathDatabase extends Dexie {
     this.version(1).stores({
       routes: "key",
       days: "id, order",
+      settings: "key",
+    });
+    this.version(2).stores({
+      routes: "key",
+      days: "id, order",
+      pointsOfInterest: "id, locationName",
       settings: "key",
     });
   }
@@ -57,7 +64,7 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 1800): Promise<T> {
   ]);
 }
 
-export async function loadInitialData(): Promise<{ route: TrailRoute; days: WalkingDay[]; planStartDate: string; storageReady: boolean }> {
+export async function loadInitialData(): Promise<{ route: TrailRoute; days: WalkingDay[]; pointsOfInterest: PlannedPointOfInterest[]; planStartDate: string; storageReady: boolean }> {
   let route = bundledRoute;
   let previousBundledRoute: TrailRoute | null = null;
   let storageReady = true;
@@ -110,6 +117,26 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   }
   days = fillWalkingDayDates(days, planStartDate);
 
+  let pointsOfInterest: PlannedPointOfInterest[] = [];
+  try {
+    const storedPoints = await withTimeout(db.pointsOfInterest.toArray());
+    const availableNames = new Set(route.checkpoints.map((point) => point.name));
+    const seenNames = new Set<string>();
+    pointsOfInterest = storedPoints.filter((point) => {
+      if (!availableNames.has(point.locationName) || seenNames.has(point.locationName)) return false;
+      seenNames.add(point.locationName);
+      return true;
+    });
+    if (pointsOfInterest.length !== storedPoints.length) {
+      db.transaction("rw", db.pointsOfInterest, async () => {
+        await db.pointsOfInterest.clear();
+        if (pointsOfInterest.length) await db.pointsOfInterest.bulkPut(pointsOfInterest);
+      }).catch(() => undefined);
+    }
+  } catch {
+    storageReady = false;
+  }
+
   // The route is compiled into the app, so startup never depends on a network
   // request. Refresh IndexedDB in the background without blocking the UI.
   if (route.id === bundledRoute.id) db.routes.put({ key: "active", data: route }).catch(() => undefined);
@@ -118,7 +145,7 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
     if (days.length) await db.days.bulkPut(days);
   }).catch(() => undefined);
 
-  return { route, days, planStartDate, storageReady };
+  return { route, days, pointsOfInterest, planStartDate, storageReady };
 }
 
 export async function savePlanStartDate(value: string) {
