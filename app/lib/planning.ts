@@ -1,4 +1,5 @@
 import type { Checkpoint, PlannedPointOfInterest, WalkingDay } from "../types";
+import { breakDayCount } from "./days.ts";
 
 export function dayDistanceKm(day: WalkingDay): number {
   return Math.max(0, day.endDistanceKm - day.startDistanceKm);
@@ -34,13 +35,13 @@ export function fillWalkingDayDates(days: WalkingDay[], startDate: string): Walk
   let dateOffset = 0;
   return days.map((day) => {
     const scheduled = { ...day, date: dateKeyAfter(startDate, dateOffset) };
-    dateOffset += day.breakAfter ? 2 : 1;
+    dateOffset += 1 + breakDayCount(day);
     return scheduled;
   });
 }
 
-export function breakDateAfter(day: WalkingDay): string {
-  return day.breakAfter ? dateKeyAfter(day.date, 1) : "";
+export function breakDateAfter(day: WalkingDay, breakIndex = 0): string {
+  return breakIndex >= 0 && breakIndex < breakDayCount(day) ? dateKeyAfter(day.date, breakIndex + 1) : "";
 }
 
 export function dayIdForDate(days: WalkingDay[], dateKey: string): string {

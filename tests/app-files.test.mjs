@@ -129,8 +129,12 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /<strong>Stage<\/strong>/);
   assert.match(app, /<strong>Point of interest<\/strong>/);
   assert.match(app, /<strong>Break day<\/strong>/);
-  assert.match(app, /setBreakAfter/);
-  assert.doesNotMatch(app, /aria-pressed=\{Boolean\(day\.breakAfter\)\}/);
+  assert.match(app, /setBreakDaysAfter/);
+  assert.match(app, /breakDayCount\(day\) \+ 1/);
+  assert.match(app, /breakDayCount\(day\) - 1/);
+  assert.match(app, /Remove one break day after day/);
+  assert.match(app, /Select the same position again to plan consecutive break days/);
+  assert.doesNotMatch(app, /const setBreakAfter =|aria-pressed=\{Boolean\(day\.breakAfter\)\}/);
   assert.doesNotMatch(app, /editor\.day\.date/);
   assert.match(app, /window\.setTimeout\(\(\) => setNotice\(""\), 4000\)/);
   assert.match(app, /window\.clearTimeout\(timeout\)/);

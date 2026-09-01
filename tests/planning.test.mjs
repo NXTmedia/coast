@@ -61,15 +61,26 @@ test("today's dated walking day is selected when the app opens", () => {
 
 test("a start date schedules stages and inserted break days across month and year boundaries", () => {
   const days = [
-    day({ id: "first", order: 1, breakAfter: true }),
+    day({ id: "first", order: 1, breakDaysAfter: 3 }),
     day({ id: "second", order: 2, date: "2028-05-12" }),
     day({ id: "third", order: 3 }),
   ];
   const scheduled = fillWalkingDayDates(days, "2026-12-30");
-  assert.deepEqual(scheduled.map(({ date }) => date), ["2026-12-30", "2027-01-01", "2027-01-02"]);
+  assert.deepEqual(scheduled.map(({ date }) => date), ["2026-12-30", "2027-01-03", "2027-01-04"]);
   assert.equal(breakDateAfter(scheduled[0]), "2026-12-31");
+  assert.equal(breakDateAfter(scheduled[0], 1), "2027-01-01");
+  assert.equal(breakDateAfter(scheduled[0], 2), "2027-01-02");
+  assert.equal(breakDateAfter(scheduled[0], 3), "");
   assert.equal(dateKeyAfter("2028-02-28", 1), "2028-02-29");
   assert.equal(days[1].date, "2028-05-12");
+});
+
+test("legacy boolean breaks still schedule one rest day", () => {
+  const scheduled = fillWalkingDayDates([
+    day({ id: "first", order: 1, breakAfter: true }),
+    day({ id: "second", order: 2 }),
+  ], "2026-09-01");
+  assert.deepEqual(scheduled.map(({ date }) => date), ["2026-09-01", "2026-09-03"]);
 });
 
 test("a GPS position selects the planned day containing that trail distance", () => {

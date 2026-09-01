@@ -27,6 +27,7 @@ export type WalkingDay = {
   id: string;
   order: number;
   date: string;
+  breakDaysAfter?: number;
   breakAfter?: boolean;
   startName: string;
   endName: string;

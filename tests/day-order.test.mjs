@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeDayOrders, reorderWalkingDays } from "../app/lib/days.ts";
+import { breakDayCount, normalizeDayOrders, reorderWalkingDays } from "../app/lib/days.ts";
 
 const day = (id, order) => ({
   id,
@@ -33,7 +33,7 @@ test("sorts and renumbers days without mutating stored records", () => {
 
 test("reorders stages, renumbers them and keeps breaks at their itinerary position", () => {
   const days = [
-    { ...day("one", 1), breakAfter: true },
+    { ...day("one", 1), breakDaysAfter: 2 },
     day("two", 2),
     day("three", 3),
   ];
@@ -41,5 +41,14 @@ test("reorders stages, renumbers them and keeps breaks at their itinerary positi
   assert.deepEqual(reordered.map(({ id, order }) => ({ id, order })), [
     { id: "three", order: 1 }, { id: "one", order: 2 }, { id: "two", order: 3 },
   ]);
-  assert.deepEqual(reordered.map(({ breakAfter }) => Boolean(breakAfter)), [true, false, false]);
+  assert.deepEqual(reordered.map(breakDayCount), [2, 0, 0]);
+});
+
+test("normalizing migrates a legacy break and clears breaks after the final stage", () => {
+  const normalized = normalizeDayOrders([
+    { ...day("first", 1), breakAfter: true },
+    { ...day("last", 2), breakDaysAfter: 3 },
+  ]);
+  assert.deepEqual(normalized.map(breakDayCount), [1, 0]);
+  assert.deepEqual(normalized.map(({ breakAfter }) => breakAfter), [undefined, undefined]);
 });

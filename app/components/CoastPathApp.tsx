@@ -17,7 +17,7 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import { db, getBundledRoute, loadInitialData, replaceRouteAndDays, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
-import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
+import { breakDayCount, normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
   breakDateAfter, cleanPlannedPointsOfInterest, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
   fillWalkingDayDates, localDateKey, plannedProgressKm, resolvePointsOfInterest, upcomingPointsOfInterest,
@@ -343,20 +343,29 @@ export function CoastPathApp() {
     setNotice(value ? "Start date saved and the itinerary rescheduled." : "Start date cleared.");
   };
 
-  const setBreakAfter = async (dayId: string, breakAfter: boolean) => {
+  const setBreakDaysAfter = async (dayId: string, count: number) => {
+    const currentDay = days.find((day) => day.id === dayId);
+    if (!currentDay) return;
+    const breakDaysAfter = Math.max(0, Math.floor(count));
+    const previousCount = breakDayCount(currentDay);
     const updated = fillWalkingDayDates(days.map((day, index) => ({
       ...day,
-      breakAfter: day.id === dayId && index < days.length - 1 ? breakAfter : day.breakAfter,
+      breakDaysAfter: day.id === dayId && index < days.length - 1 ? breakDaysAfter : breakDayCount(day),
+      breakAfter: undefined,
     })), planStartDate);
     if (updated.length) await db.days.bulkPut(updated);
     setDays(updated);
-    setNotice(breakAfter ? "Break day added; later dates moved on by one day." : "Break day removed; later dates recalculated.");
+    setNotice(breakDaysAfter > previousCount ? "Break day added; later dates moved on by one day." : "One break day removed; later dates recalculated.");
   };
 
   const openBreakEditor = () => {
-    const eligibleDay = days.slice(0, -1).find((day) => !day.breakAfter);
+    const eligibleDay = days[0];
     if (!eligibleDay) {
-      setNotice(days.length < 2 ? "Add at least two walking stages before inserting a break day." : "Every available break position is already in use.");
+      setNotice("Add at least two walking stages before inserting a break day.");
+      return;
+    }
+    if (days.length < 2) {
+      setNotice("Add at least two walking stages before inserting a break day.");
       return;
     }
     setBreakAfterDayId(eligibleDay.id);
@@ -365,7 +374,9 @@ export function CoastPathApp() {
 
   const saveBreakDay = async () => {
     if (!breakAfterDayId) return;
-    await setBreakAfter(breakAfterDayId, true);
+    const day = days.find((candidate) => candidate.id === breakAfterDayId);
+    if (!day) return;
+    await setBreakDaysAfter(breakAfterDayId, breakDayCount(day) + 1);
     setBreakEditorOpen(false);
   };
 
@@ -692,7 +703,7 @@ export function CoastPathApp() {
                     onRequestDelete={() => { setPendingLocationDeleteName(null); setPendingDayDeleteId(day.id); }}
                     onCancelDelete={() => setPendingDayDeleteId(null)}
                     onConfirmDelete={() => deleteDay(day)}
-                    onRemoveBreak={() => setBreakAfter(day.id, false)}
+                    onRemoveBreak={() => setBreakDaysAfter(day.id, breakDayCount(day) - 1)}
                     pointsOfInterest={resolvedPointsOfInterest.filter((point) => dayIdContainingDistance(days, point.distanceKm) === day.id)}
                     onRemovePointOfInterest={removePointOfInterest}
                   />)}
@@ -782,8 +793,8 @@ export function CoastPathApp() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBreakEditorOpen(false); }}>
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="break-editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Plan item</p><h2 id="break-editor-title">Add a break day</h2></div><button className="close-button" onClick={() => setBreakEditorOpen(false)} aria-label="Close break day editor"><X /></button></div>
-            <p className="location-editor-note">Choose the stage after which you want a day off. Every later date will move forward by one day.</p>
-            <label>Break position<select value={breakAfterDayId} onChange={(event) => setBreakAfterDayId(event.target.value)}>{days.slice(0, -1).filter((day) => !day.breakAfter).map((day) => <option key={day.id} value={day.id}>After Day {day.order} · {day.endName}</option>)}</select></label>
+            <p className="location-editor-note">Choose where to add another day off. Select the same position again to plan consecutive break days.</p>
+            <label>Break position<select value={breakAfterDayId} onChange={(event) => setBreakAfterDayId(event.target.value)}>{days.slice(0, -1).map((day) => <option key={day.id} value={day.id}>After Day {day.order} · {day.endName}{breakDayCount(day) ? ` · ${breakDayCount(day)} already planned` : ""}</option>)}</select></label>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setBreakEditorOpen(false)}>Cancel</button><button className="primary-button" onClick={saveBreakDay}><Coffee size={17} /> Add break day</button></div>
           </section>
         </div>
@@ -853,10 +864,10 @@ function SortableDayItem({ day, selected, deletePending, pointsOfInterest, onOpe
       <span><small>Point of interest · {(point.distanceKm - day.startDistanceKm).toFixed(1)} km into Day {day.order}</small><strong>{point.name}</strong></span>
       <button onClick={() => onRemovePointOfInterest(point)} aria-label={`Remove ${point.name} point of interest`}><X /></button>
     </article>)}
-    {day.breakAfter && <article className="break-day-row">
+    {breakDayCount(day) > 0 && <article className="break-day-row">
       <span className="break-icon"><Coffee /></span>
-      <span><small>{formatDate(breakDateAfter(day))}</small><strong>Break day</strong></span>
-      <button onClick={onRemoveBreak} aria-label={`Remove break day after day ${day.order}`}><X /></button>
+      <span><small>{breakDayCount(day) === 1 ? formatDate(breakDateAfter(day)) : `${formatDate(breakDateAfter(day))} – ${formatDate(breakDateAfter(day, breakDayCount(day) - 1))}`}</small><strong>{breakDayCount(day)} {breakDayCount(day) === 1 ? "break day" : "break days"}</strong></span>
+      <button onClick={onRemoveBreak} aria-label={`Remove one break day after day ${day.order}`}><X /></button>
     </article>}
   </div>;
 }
