@@ -70,12 +70,28 @@ export function resolvePointsOfInterest(
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
+export function cleanPlannedPointsOfInterest(
+  pointsOfInterest: PlannedPointOfInterest[],
+  checkpoints: Checkpoint[],
+  days: WalkingDay[],
+): PlannedPointOfInterest[] {
+  const checkpointsByName = new Map(checkpoints.map((checkpoint) => [checkpoint.name, checkpoint]));
+  const seenNames = new Set<string>();
+  return pointsOfInterest.filter((point) => {
+    const checkpoint = checkpointsByName.get(point.locationName);
+    if (!checkpoint || seenNames.has(point.locationName) || !dayIdContainingDistance(days, checkpoint.distanceKm)) return false;
+    seenNames.add(point.locationName);
+    return true;
+  });
+}
+
 export function nextPointOfInterest(
   pointsOfInterest: PlannedPointOfInterest[],
   checkpoints: Checkpoint[],
+  days: WalkingDay[],
   trailDistanceKm: number,
 ): { point: ResolvedPointOfInterest; distanceRemainingKm: number } | null {
-  const point = resolvePointsOfInterest(pointsOfInterest, checkpoints)
+  const point = resolvePointsOfInterest(cleanPlannedPointsOfInterest(pointsOfInterest, checkpoints, days), checkpoints)
     .find((candidate) => candidate.distanceKm > trailDistanceKm + 0.01);
   return point ? { point, distanceRemainingKm: point.distanceKm - trailDistanceKm } : null;
 }

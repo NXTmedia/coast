@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   breakDateAfter,
+  cleanPlannedPointsOfInterest,
   dateKeyAfter,
   dayIdContainingDistance,
   dayIdForDate,
@@ -100,11 +101,29 @@ test("planned points of interest resolve from saved locations and select the nex
     { id: "missing", locationName: "Not on this route" },
     { id: "porthleven", locationName: "Porthleven" },
   ];
+  const plannedDays = [day({ startDistanceKm: 20, endDistanceKm: 60 })];
 
   assert.deepEqual(resolvePointsOfInterest(points, checkpoints).map(({ name }) => name), ["Porthleven", "Lizard Point"]);
-  assert.deepEqual(nextPointOfInterest(points, checkpoints, 45), {
+  assert.deepEqual(cleanPlannedPointsOfInterest(points, checkpoints, plannedDays), [{ id: "porthleven", locationName: "Porthleven" }]);
+  assert.deepEqual(nextPointOfInterest(points, checkpoints, plannedDays, 45), {
     point: { id: "porthleven", locationName: "Porthleven", ...checkpoints[1] },
     distanceRemainingKm: 5.200000000000003,
   });
-  assert.equal(nextPointOfInterest(points, checkpoints, 80), null);
+  assert.equal(nextPointOfInterest(points, checkpoints, plannedDays, 80), null);
+});
+
+test("orphaned points of interest are removed when no walking stage contains them", () => {
+  const checkpoints = [
+    { name: "Inside", lat: 50, lng: -5, distanceKm: 15 },
+    { name: "Orphan", lat: 50, lng: -4.9, distanceKm: 30 },
+  ];
+  const points = [
+    { id: "inside", locationName: "Inside" },
+    { id: "orphan", locationName: "Orphan" },
+    { id: "duplicate", locationName: "Inside" },
+  ];
+  const plannedDays = [day({ startDistanceKm: 10, endDistanceKm: 20 })];
+
+  assert.deepEqual(cleanPlannedPointsOfInterest(points, checkpoints, plannedDays), [{ id: "inside", locationName: "Inside" }]);
+  assert.equal(nextPointOfInterest(points, checkpoints, plannedDays, 20), null);
 });

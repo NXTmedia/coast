@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { Checkpoint, PlannedPointOfInterest, TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../data/swcp-route.json";
 import { normalizeDayOrders } from "./days";
-import { fillWalkingDayDates } from "./planning";
+import { cleanPlannedPointsOfInterest, fillWalkingDayDates } from "./planning";
 import { migrateCheckpointsToRoute, migrateDaysToRoute } from "./route";
 
 type StoredRoute = { key: string; data: TrailRoute };
@@ -109,13 +109,7 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   let pointsOfInterest: PlannedPointOfInterest[] = [];
   try {
     const storedPoints = await withTimeout(db.pointsOfInterest.toArray());
-    const availableNames = new Set(route.checkpoints.map((point) => point.name));
-    const seenNames = new Set<string>();
-    pointsOfInterest = storedPoints.filter((point) => {
-      if (!availableNames.has(point.locationName) || seenNames.has(point.locationName)) return false;
-      seenNames.add(point.locationName);
-      return true;
-    });
+    pointsOfInterest = cleanPlannedPointsOfInterest(storedPoints, route.checkpoints, days);
     if (pointsOfInterest.length !== storedPoints.length) {
       db.transaction("rw", db.pointsOfInterest, async () => {
         await db.pointsOfInterest.clear();

@@ -19,7 +19,7 @@ import {
 import { db, getBundledRoute, loadInitialData, replaceRouteAndDays, savePlanStartDate, saveRouteCheckpoints } from "../lib/db";
 import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
-  breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
+  breakDateAfter, cleanPlannedPointsOfInterest, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
   fillWalkingDayDates, localDateKey, nextPointOfInterest, plannedProgressKm, resolvePointsOfInterest,
   totalPlannedDistanceKm, type ResolvedPointOfInterest,
 } from "../lib/planning";
@@ -171,13 +171,17 @@ export function CoastPathApp() {
   const planDistanceRemaining = Math.max(0, plannedDistance - planProgress);
   const planDistancePercent = Math.round(plannedDistance ? planProgress / plannedDistance * 100 : 0);
   const planAscentPercentLeft = Math.round(planAscentTotal ? planAscentRemaining / planAscentTotal * 100 : 0);
+  const plannedPointsOfInterest = useMemo(
+    () => route ? cleanPlannedPointsOfInterest(pointsOfInterest, route.checkpoints, days) : [],
+    [route, pointsOfInterest, days],
+  );
   const resolvedPointsOfInterest = useMemo(
-    () => route ? resolvePointsOfInterest(pointsOfInterest, route.checkpoints) : [],
-    [route, pointsOfInterest],
+    () => route ? resolvePointsOfInterest(plannedPointsOfInterest, route.checkpoints) : [],
+    [route, plannedPointsOfInterest],
   );
   const nextPoi = useMemo(
-    () => route ? nextPointOfInterest(pointsOfInterest, route.checkpoints, matched?.distanceKm ?? selectedDay?.startDistanceKm ?? 0) : null,
-    [route, pointsOfInterest, matched, selectedDay],
+    () => route ? nextPointOfInterest(plannedPointsOfInterest, route.checkpoints, days, matched?.distanceKm ?? selectedDay?.startDistanceKm ?? 0) : null,
+    [route, plannedPointsOfInterest, days, matched, selectedDay],
   );
   const profilePointsOfInterest = useMemo(
     () => route && selectedDay ? resolvedPointsOfInterest
@@ -310,18 +314,27 @@ export function CoastPathApp() {
       setNotice("Give both the start and end locations a name."); return;
     }
     const updated = fillWalkingDayDates(normalizeDayOrders([...days.filter((day) => day.id !== savedDay.id), savedDay]), planStartDate);
-    await db.days.bulkPut(updated);
-    setDays(updated); setSelectedId(savedDay.id); setEditor(null);
+    const retainedPoints = route ? cleanPlannedPointsOfInterest(pointsOfInterest, route.checkpoints, updated) : [];
+    await db.transaction("rw", db.days, db.pointsOfInterest, async () => {
+      await db.days.clear();
+      if (updated.length) await db.days.bulkPut(updated);
+      await db.pointsOfInterest.clear();
+      if (retainedPoints.length) await db.pointsOfInterest.bulkPut(retainedPoints);
+    });
+    setDays(updated); setPointsOfInterest(retainedPoints); setSelectedId(savedDay.id); setEditor(null);
     setNotice("Walking stage saved and itinerary dates updated.");
   };
 
   const deleteDay = async (day: WalkingDay) => {
     const updated = fillWalkingDayDates(normalizeDayOrders(days.filter((candidate) => candidate.id !== day.id)), planStartDate);
-    await db.transaction("rw", db.days, async () => {
-      await db.days.delete(day.id);
+    const retainedPoints = route ? cleanPlannedPointsOfInterest(pointsOfInterest, route.checkpoints, updated) : [];
+    await db.transaction("rw", db.days, db.pointsOfInterest, async () => {
+      await db.days.clear();
       if (updated.length) await db.days.bulkPut(updated);
+      await db.pointsOfInterest.clear();
+      if (retainedPoints.length) await db.pointsOfInterest.bulkPut(retainedPoints);
     });
-    setDays(updated); setSelectedId(updated[0]?.id ?? ""); setPendingDayDeleteId(null); setNotice("Walking stage removed; numbering and dates updated.");
+    setDays(updated); setPointsOfInterest(retainedPoints); setSelectedId(updated[0]?.id ?? ""); setPendingDayDeleteId(null); setNotice("Walking stage removed; numbering, dates and points of interest updated.");
   };
 
   const changePlanStartDate = async (value: string) => {
@@ -361,9 +374,10 @@ export function CoastPathApp() {
 
   const openPointOfInterestEditor = () => {
     if (!route) return;
-    const available = route.checkpoints.find((location) => !pointsOfInterest.some((point) => point.locationName === location.name));
+    const locationsInsidePlan = route.checkpoints.filter((location) => dayIdContainingDistance(days, location.distanceKm));
+    const available = locationsInsidePlan.find((location) => !plannedPointsOfInterest.some((point) => point.locationName === location.name));
     if (!available) {
-      setNotice("Every saved location is already a point of interest.");
+      setNotice(locationsInsidePlan.length ? "Every location inside the planned stages is already a point of interest." : "Add a walking stage before adding a point of interest.");
       return;
     }
     setPoiLocationName(available.name);
@@ -371,7 +385,12 @@ export function CoastPathApp() {
   };
 
   const savePointOfInterest = async () => {
-    if (!poiLocationName || pointsOfInterest.some((point) => point.locationName === poiLocationName)) return;
+    if (!route || !poiLocationName || plannedPointsOfInterest.some((point) => point.locationName === poiLocationName)) return;
+    const location = route.checkpoints.find((checkpoint) => checkpoint.name === poiLocationName);
+    if (!location || !dayIdContainingDistance(days, location.distanceKm)) {
+      setNotice("Choose a location inside one of the planned stages.");
+      return;
+    }
     const point = { id: crypto.randomUUID(), locationName: poiLocationName };
     await db.pointsOfInterest.put(point);
     setPointsOfInterest((current) => [...current, point]);
@@ -449,11 +468,16 @@ export function CoastPathApp() {
         ...(day.startName === locationEditor.originalName ? { startName: name, startDistanceKm: match.distanceKm, startCoordinate: undefined } : {}),
         ...(day.endName === locationEditor.originalName ? { endName: name, endDistanceKm: match.distanceKm, endCoordinate: undefined } : {}),
       }));
-      if (updatedDays.length) await db.days.bulkPut(updatedDays);
-      setDays(updatedDays);
       const renamedPoints = pointsOfInterest.map((point) => point.locationName === locationEditor.originalName ? { ...point, locationName: name } : point);
-      if (renamedPoints.length) await db.pointsOfInterest.bulkPut(renamedPoints);
-      setPointsOfInterest(renamedPoints);
+      const retainedPoints = cleanPlannedPointsOfInterest(renamedPoints, updatedRoute.checkpoints, updatedDays);
+      await db.transaction("rw", db.days, db.pointsOfInterest, async () => {
+        await db.days.clear();
+        if (updatedDays.length) await db.days.bulkPut(updatedDays);
+        await db.pointsOfInterest.clear();
+        if (retainedPoints.length) await db.pointsOfInterest.bulkPut(retainedPoints);
+      });
+      setDays(updatedDays);
+      setPointsOfInterest(retainedPoints);
     }
     setLocationEditor(null);
     setNotice(`${name} saved at ${match.distanceKm.toFixed(1)} km · matched ${Math.round(match.offRouteM)} m from the entered coordinate.`);
@@ -760,7 +784,7 @@ export function CoastPathApp() {
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="poi-editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Plan item</p><h2 id="poi-editor-title">Add a point of interest</h2></div><button className="close-button" onClick={() => setPoiEditorOpen(false)} aria-label="Close point of interest editor"><X /></button></div>
             <p className="location-editor-note">Choose a place from your saved Locations. Track will show the distance to the next one ahead.</p>
-            <label>Location<select value={poiLocationName} onChange={(event) => setPoiLocationName(event.target.value)}>{route.checkpoints.filter((location) => !pointsOfInterest.some((point) => point.locationName === location.name)).map((location) => <option key={location.name} value={location.name}>{location.name} · {location.distanceKm.toFixed(1)} km</option>)}</select></label>
+            <label>Location<select value={poiLocationName} onChange={(event) => setPoiLocationName(event.target.value)}>{route.checkpoints.filter((location) => dayIdContainingDistance(days, location.distanceKm) && !plannedPointsOfInterest.some((point) => point.locationName === location.name)).map((location) => <option key={location.name} value={location.name}>{location.name} · {location.distanceKm.toFixed(1)} km</option>)}</select></label>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setPoiEditorOpen(false)}>Cancel</button><button className="primary-button" onClick={savePointOfInterest}><MapPin size={17} /> Add point</button></div>
           </section>
         </div>

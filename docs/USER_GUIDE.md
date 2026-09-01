@@ -18,7 +18,7 @@ The **Plan** screen has one walk start date. Each stage occupies one walking day
 - Drag stages to reorder them; numbering and dates update automatically.
 - Choose **Add → Break day**, then select the stage after which to take a day off. Every later date moves forward by one day. The former coffee-cup button on every stage has been removed.
 - Remove a break with the close button on its break-day row to close the date gap again.
-- Choose **Add → Point of interest**, then choose any saved Location. The point is automatically placed beneath the stage containing its GPX distance, where it shows its distance from that day's start. Multiple points follow route order and can be removed from their itinerary rows.
+- Choose **Add → Point of interest**, then choose a saved Location inside one of the planned stages. The point is automatically placed beneath the stage containing its GPX distance, where it shows its distance from that day's start. Multiple points follow route order and can be removed from their itinerary rows. Editing or deleting stages automatically removes a point of interest that is no longer contained by the plan.
 - Tap a stage's delete icon, then use the inline **Delete stage?** confirmation. **Cancel** leaves it unchanged.
 
 Stage names and coordinates are not edited here. Manage them on **Locations**.
