@@ -61,8 +61,6 @@ export function CoastPathApp() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [poiEditorOpen, setPoiEditorOpen] = useState(false);
   const [poiLocationName, setPoiLocationName] = useState("");
-  const [selectedProfilePoiId, setSelectedProfilePoiId] = useState("");
-  const [hoveredProfilePoiId, setHoveredProfilePoiId] = useState("");
   const [breakEditorOpen, setBreakEditorOpen] = useState(false);
   const [breakAfterDayId, setBreakAfterDayId] = useState("");
   const [pendingDayDeleteId, setPendingDayDeleteId] = useState<string | null>(null);
@@ -193,7 +191,6 @@ export function CoastPathApp() {
       })) : [],
     [route, selectedDay, resolvedPointsOfInterest],
   );
-  const activeProfilePoi = profilePointsOfInterest.find((point) => point.id === (hoveredProfilePoiId || selectedProfilePoiId));
   const chartData = dayPoints.map((point) => ({
     ...point,
     dayKm: Number((point.distanceKm - (selectedDay?.startDistanceKm ?? 0)).toFixed(2)),
@@ -608,7 +605,7 @@ export function CoastPathApp() {
                     <CartesianGrid stroke="#dbe3df" strokeDasharray="3 5" vertical={false} />
                     <XAxis dataKey="dayKm" type="number" domain={[0, Math.ceil(dayDistance)]} unit=" km" tick={{ fontSize: 11, fill: "#66756f" }} axisLine={false} tickLine={false} />
                     <YAxis dataKey="elevationM" unit=" m" tick={{ fontSize: 11, fill: "#66756f" }} axisLine={false} tickLine={false} width={56} />
-                    <Tooltip content={<ElevationTooltip suppress={Boolean(activeProfilePoi)} />} cursor={{ stroke: "#183f35", strokeWidth: 1 }} />
+                    <Tooltip content={<ElevationTooltip />} cursor={{ stroke: "#183f35", strokeWidth: 1 }} />
                     <Area type="monotone" dataKey="elevationM" stroke="#dd6744" strokeWidth={2.5} fill="url(#elevationFill)" animationDuration={600} />
                     {profilePointsOfInterest.map((point) => <ReferenceDot
                       key={point.id}
@@ -617,20 +614,12 @@ export function CoastPathApp() {
                       shape={(marker) => <ProfilePoiDot
                         cx={marker.cx}
                         cy={marker.cy}
-                        name={point.name}
-                        active={activeProfilePoi?.id === point.id}
-                        onHover={(hovering) => setHoveredProfilePoiId(hovering ? point.id : "")}
-                        onToggle={() => {
-                          setHoveredProfilePoiId("");
-                          setSelectedProfilePoiId((current) => current === point.id ? "" : point.id);
-                        }}
                       />}
                     />)}
                     {liveProfilePoint && <ReferenceLine x={liveProfilePoint.distanceKm - selectedDay.startDistanceKm} stroke="#2f83be" strokeWidth={2} strokeDasharray="4 4" label={{ value: "You are here", position: "insideTopRight", fill: "#236994", fontSize: 11 }} />}
                     {liveProfilePoint && <ReferenceDot x={liveProfilePoint.distanceKm - selectedDay.startDistanceKm} y={liveProfilePoint.elevationM} r={6} fill="#2f83be" stroke="#fffefa" strokeWidth={3} />}
                   </AreaChart>
                 </ResponsiveContainer>
-                {activeProfilePoi && <div className="profile-poi-label" role="status"><span /><strong>{activeProfilePoi.name}</strong></div>}
               </div>
               <div className="profile-day-navigation" aria-label="Choose walking day">
                 <button onClick={() => selectAdjacentDay(-1)} disabled={selectedIndex <= 0} aria-label="Previous walking day"><ChevronLeft /></button>
@@ -892,37 +881,18 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return <button className={active ? "active" : ""} onClick={onClick} aria-current={active ? "page" : undefined}>{icon}<span>{label}</span></button>;
 }
 
-function ElevationTooltip({ active, payload, suppress = false }: { active?: boolean; payload?: Array<{ payload: { dayKm: number; elevationM: number } }>; suppress?: boolean }) {
-  if (suppress || !active || !payload?.length) return null;
+function ElevationTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { dayKm: number; elevationM: number } }> }) {
+  if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return <div className="elevation-tooltip"><strong>{point.elevationM} m</strong><span>{point.dayKm.toFixed(1)} km into day</span></div>;
 }
 
-function ProfilePoiDot({ cx, cy, name, active, onHover, onToggle }: {
+function ProfilePoiDot({ cx, cy }: {
   cx?: number;
   cy?: number;
-  name: string;
-  active: boolean;
-  onHover: (hovering: boolean) => void;
-  onToggle: () => void;
 }) {
   if (cx === undefined || cy === undefined) return <g />;
-  return <g
-    className={`profile-poi-dot${active ? " active" : ""}`}
-    role="button"
-    tabIndex={0}
-    aria-label={`${name} point of interest`}
-    onMouseEnter={() => onHover(true)}
-    onMouseLeave={() => onHover(false)}
-    onClick={onToggle}
-    onKeyDown={(event) => {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onToggle(); }
-    }}
-  >
-    <title>{name}</title>
-    <circle className="profile-poi-hit-area" cx={cx} cy={cy} r={15} />
-    <circle className="profile-poi-marker" cx={cx} cy={cy} r={active ? 8 : 6} />
-  </g>;
+  return <circle className="profile-poi-marker" cx={cx} cy={cy} r={6} aria-hidden="true" />;
 }
 
 async function prepareOfflineApp(): Promise<boolean> {
