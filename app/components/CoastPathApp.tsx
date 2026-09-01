@@ -20,7 +20,7 @@ import { db, getBundledRoute, loadInitialData, replaceRouteAndDays, savePlanStar
 import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
   breakDateAfter, cleanPlannedPointsOfInterest, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
-  fillWalkingDayDates, localDateKey, nextPointOfInterest, plannedProgressKm, resolvePointsOfInterest,
+  fillWalkingDayDates, localDateKey, plannedProgressKm, resolvePointsOfInterest, upcomingPointsOfInterest,
   totalPlannedDistanceKm, type ResolvedPointOfInterest,
 } from "../lib/planning";
 import {
@@ -177,8 +177,8 @@ export function CoastPathApp() {
     () => route ? resolvePointsOfInterest(plannedPointsOfInterest, route.checkpoints) : [],
     [route, plannedPointsOfInterest],
   );
-  const nextPoi = useMemo(
-    () => route ? nextPointOfInterest(plannedPointsOfInterest, route.checkpoints, days, matched?.distanceKm ?? selectedDay?.startDistanceKm ?? 0) : null,
+  const upcomingPois = useMemo(
+    () => route ? upcomingPointsOfInterest(plannedPointsOfInterest, route.checkpoints, days, matched?.distanceKm ?? selectedDay?.startDistanceKm ?? 0) : [],
     [route, plannedPointsOfInterest, days, matched, selectedDay],
   );
   const profilePointsOfInterest = useMemo(
@@ -642,10 +642,9 @@ export function CoastPathApp() {
               <div className="progress-pair"><div><span>Remaining</span><strong>{formatMetres(dayAscentRemaining)}</strong></div><div><span>Day total</span><strong>{formatMetres(dayAscentTotal)}</strong></div></div>
             </section>
 
-            <section className="next-poi-card panel">
-              <span className="poi-icon"><MapPin /></span>
-              <div><p className="eyebrow">Next point of interest</p>{nextPoi ? <><h2>{nextPoi.point.name}</h2><small>{matched ? "From your live position" : `From the start of ${selectedDay.startName}`}</small></> : <><h2>No upcoming POI</h2><small>Add one from the Plan screen.</small></>}</div>
-              {nextPoi && <strong>{formatKm(nextPoi.distanceRemainingKm)}</strong>}
+            <section className="upcoming-poi-card panel">
+              <div className="upcoming-poi-heading"><span className="poi-icon"><MapPin /></span><div><p className="eyebrow">Points of interest ahead</p><h2>{upcomingPois.length ? `${upcomingPois.length} upcoming` : "No upcoming POIs"}</h2><small>{upcomingPois.length ? (matched ? "From your live position" : `From the start of ${selectedDay.startName}`) : "Add one from the Plan screen."}</small></div></div>
+              {upcomingPois.length > 0 && <ol className="upcoming-poi-list">{upcomingPois.map(({ point, distanceRemainingKm }) => <li key={point.id}><div><strong>{point.name}</strong><small>{formatKm(point.distanceKm)} along the trail</small></div><strong>{formatKm(distanceRemainingKm)} ahead</strong></li>)}</ol>}
             </section>
 
             <section className="total-walk-card panel">
@@ -772,7 +771,7 @@ export function CoastPathApp() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPoiEditorOpen(false); }}>
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="poi-editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Plan item</p><h2 id="poi-editor-title">Add a point of interest</h2></div><button className="close-button" onClick={() => setPoiEditorOpen(false)} aria-label="Close point of interest editor"><X /></button></div>
-            <p className="location-editor-note">Choose a place from your saved Locations. Track will show the distance to the next one ahead.</p>
+            <p className="location-editor-note">Choose a place from your saved Locations. Track will list every point of interest ahead.</p>
             <label>Location<select value={poiLocationName} onChange={(event) => setPoiLocationName(event.target.value)}>{route.checkpoints.filter((location) => dayIdContainingDistance(days, location.distanceKm) && !plannedPointsOfInterest.some((point) => point.locationName === location.name)).map((location) => <option key={location.name} value={location.name}>{location.name} · {location.distanceKm.toFixed(1)} km</option>)}</select></label>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setPoiEditorOpen(false)}>Cancel</button><button className="primary-button" onClick={savePointOfInterest}><MapPin size={17} /> Add point</button></div>
           </section>

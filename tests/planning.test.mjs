@@ -10,10 +10,10 @@ import {
   daysUsingLocation,
   fillWalkingDayDates,
   localDateKey,
-  nextPointOfInterest,
   plannedProgressKm,
   resolvePointsOfInterest,
   totalPlannedDistanceKm,
+  upcomingPointsOfInterest,
 } from "../app/lib/planning.ts";
 
 const day = (overrides = {}) => ({
@@ -90,7 +90,7 @@ test("locations used by planned stages are identified before deletion", () => {
   assert.deepEqual(daysUsingLocation(days, "Falmouth"), []);
 });
 
-test("planned points of interest resolve from saved locations and select the next one ahead", () => {
+test("planned points of interest resolve from saved locations and list every one ahead", () => {
   const checkpoints = [
     { name: "Penzance", lat: 50.1, lng: -5.5, distanceKm: 26.5 },
     { name: "Porthleven", lat: 50.08, lng: -5.31, distanceKm: 50.2 },
@@ -105,11 +105,11 @@ test("planned points of interest resolve from saved locations and select the nex
 
   assert.deepEqual(resolvePointsOfInterest(points, checkpoints).map(({ name }) => name), ["Porthleven", "Lizard Point"]);
   assert.deepEqual(cleanPlannedPointsOfInterest(points, checkpoints, plannedDays), [{ id: "porthleven", locationName: "Porthleven" }]);
-  assert.deepEqual(nextPointOfInterest(points, checkpoints, plannedDays, 45), {
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 45), [{
     point: { id: "porthleven", locationName: "Porthleven", ...checkpoints[1] },
     distanceRemainingKm: 5.200000000000003,
-  });
-  assert.equal(nextPointOfInterest(points, checkpoints, plannedDays, 80), null);
+  }]);
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 80), []);
 });
 
 test("orphaned points of interest are removed when no walking stage contains them", () => {
@@ -125,5 +125,24 @@ test("orphaned points of interest are removed when no walking stage contains the
   const plannedDays = [day({ startDistanceKm: 10, endDistanceKm: 20 })];
 
   assert.deepEqual(cleanPlannedPointsOfInterest(points, checkpoints, plannedDays), [{ id: "inside", locationName: "Inside" }]);
-  assert.equal(nextPointOfInterest(points, checkpoints, plannedDays, 20), null);
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 20), []);
+});
+
+test("all forward-looking planned points are returned in route order", () => {
+  const checkpoints = [
+    { name: "First", lat: 50, lng: -5, distanceKm: 12 },
+    { name: "Second", lat: 50, lng: -4.9, distanceKm: 18 },
+    { name: "Behind", lat: 50, lng: -5.1, distanceKm: 4 },
+  ];
+  const points = [
+    { id: "second", locationName: "Second" },
+    { id: "behind", locationName: "Behind" },
+    { id: "first", locationName: "First" },
+  ];
+  const plannedDays = [day({ startDistanceKm: 0, endDistanceKm: 20 })];
+
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 10).map(({ point, distanceRemainingKm }) => ({ name: point.name, distanceRemainingKm })), [
+    { name: "First", distanceRemainingKm: 2 },
+    { name: "Second", distanceRemainingKm: 8 },
+  ]);
 });

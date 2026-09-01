@@ -85,13 +85,13 @@ export function cleanPlannedPointsOfInterest(
   });
 }
 
-export function nextPointOfInterest(
+export function upcomingPointsOfInterest(
   pointsOfInterest: PlannedPointOfInterest[],
   checkpoints: Checkpoint[],
   days: WalkingDay[],
   trailDistanceKm: number,
-): { point: ResolvedPointOfInterest; distanceRemainingKm: number } | null {
-  const point = resolvePointsOfInterest(cleanPlannedPointsOfInterest(pointsOfInterest, checkpoints, days), checkpoints)
-    .find((candidate) => candidate.distanceKm > trailDistanceKm + 0.01);
-  return point ? { point, distanceRemainingKm: point.distanceKm - trailDistanceKm } : null;
+): Array<{ point: ResolvedPointOfInterest; distanceRemainingKm: number }> {
+  return resolvePointsOfInterest(cleanPlannedPointsOfInterest(pointsOfInterest, checkpoints, days), checkpoints)
+    .filter((candidate) => candidate.distanceKm > trailDistanceKm + 0.01)
+    .map((point) => ({ point, distanceRemainingKm: point.distanceKm - trailDistanceKm }));
 }
