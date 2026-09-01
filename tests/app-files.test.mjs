@@ -104,6 +104,9 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /ProfilePoiDot/);
   assert.match(app, /profilePointsOfInterest/);
   assert.match(app, /profile-poi-label/);
+  assert.match(app, /ElevationTooltip suppress=\{Boolean\(activeProfilePoi\)\}/);
+  assert.match(app, /if \(suppress \|\| !active/);
+  assert.doesNotMatch(app, /activeProfilePoi\.dayKm\.toFixed/);
   assert.match(app, /onMouseEnter=\{\(\) => onHover\(true\)\}/);
   assert.match(app, /onClick=\{onToggle\}/);
   assert.match(app, /event\.key === "Enter" \|\| event\.key === " "/);

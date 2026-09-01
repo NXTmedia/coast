@@ -581,7 +581,7 @@ export function CoastPathApp() {
                     <CartesianGrid stroke="#dbe3df" strokeDasharray="3 5" vertical={false} />
                     <XAxis dataKey="dayKm" type="number" domain={[0, Math.ceil(dayDistance)]} unit=" km" tick={{ fontSize: 11, fill: "#66756f" }} axisLine={false} tickLine={false} />
                     <YAxis dataKey="elevationM" unit=" m" tick={{ fontSize: 11, fill: "#66756f" }} axisLine={false} tickLine={false} width={56} />
-                    <Tooltip content={<ElevationTooltip />} cursor={{ stroke: "#183f35", strokeWidth: 1 }} />
+                    <Tooltip content={<ElevationTooltip suppress={Boolean(activeProfilePoi)} />} cursor={{ stroke: "#183f35", strokeWidth: 1 }} />
                     <Area type="monotone" dataKey="elevationM" stroke="#dd6744" strokeWidth={2.5} fill="url(#elevationFill)" animationDuration={600} />
                     {profilePointsOfInterest.map((point) => <ReferenceDot
                       key={point.id}
@@ -603,7 +603,7 @@ export function CoastPathApp() {
                     {liveProfilePoint && <ReferenceDot x={liveProfilePoint.distanceKm - selectedDay.startDistanceKm} y={liveProfilePoint.elevationM} r={6} fill="#2f83be" stroke="#fffefa" strokeWidth={3} />}
                   </AreaChart>
                 </ResponsiveContainer>
-                {activeProfilePoi && <div className="profile-poi-label" role="status"><span /><strong>{activeProfilePoi.name}</strong><small>{activeProfilePoi.dayKm.toFixed(1)} km into Day {selectedDay.order}</small></div>}
+                {activeProfilePoi && <div className="profile-poi-label" role="status"><span /><strong>{activeProfilePoi.name}</strong></div>}
               </div>
               <div className="profile-day-navigation" aria-label="Choose walking day">
                 <button onClick={() => selectAdjacentDay(-1)} disabled={selectedIndex <= 0} aria-label="Previous walking day"><ChevronLeft /></button>
@@ -865,8 +865,8 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return <button className={active ? "active" : ""} onClick={onClick} aria-current={active ? "page" : undefined}>{icon}<span>{label}</span></button>;
 }
 
-function ElevationTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { dayKm: number; elevationM: number } }> }) {
-  if (!active || !payload?.length) return null;
+function ElevationTooltip({ active, payload, suppress = false }: { active?: boolean; payload?: Array<{ payload: { dayKm: number; elevationM: number } }>; suppress?: boolean }) {
+  if (suppress || !active || !payload?.length) return null;
   const point = payload[0].payload;
   return <div className="elevation-tooltip"><strong>{point.elevationM} m</strong><span>{point.dayKm.toFixed(1)} km into day</span></div>;
 }

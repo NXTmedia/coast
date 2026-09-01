@@ -17,7 +17,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Elevation profile positioned first beneath the Track screen top bar, titled with the selected start and end points and labelled with its day and date
 - Automatic phone-landscape profile mode that fills the available screen and restores the normal interface in portrait
 - Live GPS position marker on the selected day's elevation profile
-- Interactive coloured POI markers on the profile, with names revealed by hover, keyboard focus or tap
+- Interactive coloured POI markers on the profile, with a single name label revealed by hover, keyboard focus or tap
 - High-accuracy iPhone browser location via `watchPosition`
 - GPS simulation about 3 km beyond Lizard Point for testing without sharing device location
 - Optional live GPS check on the Locations screen showing the phone's latitude, longitude and reported accuracy
