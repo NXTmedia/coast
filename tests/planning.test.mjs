@@ -101,7 +101,7 @@ test("locations used by planned stages are identified before deletion", () => {
   assert.deepEqual(daysUsingLocation(days, "Falmouth"), []);
 });
 
-test("planned points of interest resolve from saved locations and list every one ahead", () => {
+test("planned points of interest resolve from saved locations and list those ahead on the selected day", () => {
   const checkpoints = [
     { name: "Penzance", lat: 50.1, lng: -5.5, distanceKm: 26.5 },
     { name: "Porthleven", lat: 50.08, lng: -5.31, distanceKm: 50.2 },
@@ -116,11 +116,11 @@ test("planned points of interest resolve from saved locations and list every one
 
   assert.deepEqual(resolvePointsOfInterest(points, checkpoints).map(({ name }) => name), ["Porthleven", "Lizard Point"]);
   assert.deepEqual(cleanPlannedPointsOfInterest(points, checkpoints, plannedDays), [{ id: "porthleven", locationName: "Porthleven" }]);
-  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 45), [{
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, plannedDays[0], 45), [{
     point: { id: "porthleven", locationName: "Porthleven", ...checkpoints[1] },
     distanceRemainingKm: 5.200000000000003,
   }]);
-  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 80), []);
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, plannedDays[0], 80), []);
 });
 
 test("orphaned points of interest are removed when no walking stage contains them", () => {
@@ -136,7 +136,7 @@ test("orphaned points of interest are removed when no walking stage contains the
   const plannedDays = [day({ startDistanceKm: 10, endDistanceKm: 20 })];
 
   assert.deepEqual(cleanPlannedPointsOfInterest(points, checkpoints, plannedDays), [{ id: "inside", locationName: "Inside" }]);
-  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 20), []);
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, plannedDays[0], 20), []);
 });
 
 test("all forward-looking planned points are returned in route order", () => {
@@ -152,8 +152,32 @@ test("all forward-looking planned points are returned in route order", () => {
   ];
   const plannedDays = [day({ startDistanceKm: 0, endDistanceKm: 20 })];
 
-  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, 10).map(({ point, distanceRemainingKm }) => ({ name: point.name, distanceRemainingKm })), [
+  assert.deepEqual(upcomingPointsOfInterest(points, checkpoints, plannedDays, plannedDays[0], 10).map(({ point, distanceRemainingKm }) => ({ name: point.name, distanceRemainingKm })), [
     { name: "First", distanceRemainingKm: 2 },
     { name: "Second", distanceRemainingKm: 8 },
   ]);
+});
+
+test("upcoming points of interest never include another walking day", () => {
+  const checkpoints = [
+    { name: "Day one POI", lat: 50, lng: -5, distanceKm: 15 },
+    { name: "Day two POI", lat: 50, lng: -4.9, distanceKm: 25 },
+  ];
+  const points = [
+    { id: "day-one-poi", locationName: "Day one POI" },
+    { id: "day-two-poi", locationName: "Day two POI" },
+  ];
+  const plannedDays = [
+    day({ id: "day-one", order: 1, startDistanceKm: 10, endDistanceKm: 20 }),
+    day({ id: "day-two", order: 2, startDistanceKm: 20, endDistanceKm: 30 }),
+  ];
+
+  assert.deepEqual(
+    upcomingPointsOfInterest(points, checkpoints, plannedDays, plannedDays[0], 10).map(({ point }) => point.name),
+    ["Day one POI"],
+  );
+  assert.deepEqual(
+    upcomingPointsOfInterest(points, checkpoints, plannedDays, plannedDays[1], 20).map(({ point }) => point.name),
+    ["Day two POI"],
+  );
 });

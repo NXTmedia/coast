@@ -213,7 +213,8 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /upcoming-poi-card/);
   assert.match(app, /upcomingPointsOfInterest/);
   assert.match(app, /Points of interest ahead/);
-  assert.match(app, /Track will list every point of interest ahead/);
+  assert.match(app, /Track will list points of interest ahead on the selected day/);
+  assert.match(app, /upcomingPointsOfInterest\(plannedPointsOfInterest, route\.checkpoints, days, selectedDay,/);
   assert.match(app, /upcomingPois\.map/);
   assert.doesNotMatch(app, /nextPoi|Next point of interest/);
   assert.match(app, /cleanPlannedPointsOfInterest/);

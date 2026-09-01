@@ -90,9 +90,13 @@ export function upcomingPointsOfInterest(
   pointsOfInterest: PlannedPointOfInterest[],
   checkpoints: Checkpoint[],
   days: WalkingDay[],
+  selectedDay: WalkingDay,
   trailDistanceKm: number,
 ): Array<{ point: ResolvedPointOfInterest; distanceRemainingKm: number }> {
   return resolvePointsOfInterest(cleanPlannedPointsOfInterest(pointsOfInterest, checkpoints, days), checkpoints)
-    .filter((candidate) => candidate.distanceKm > trailDistanceKm + 0.01)
+    .filter((candidate) => (
+      dayIdContainingDistance(days, candidate.distanceKm) === selectedDay.id
+      && candidate.distanceKm > trailDistanceKm + 0.01
+    ))
     .map((point) => ({ point, distanceRemainingKm: point.distanceKm - trailDistanceKm }));
 }

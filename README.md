@@ -21,7 +21,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - High-accuracy iPhone browser location via `watchPosition`
 - GPS simulation about 3 km beyond The Lizard for testing without sharing device location
 - Optional live GPS check on the Locations screen showing the phone's latitude, longitude and reported accuracy
-- Separate Track panels for day distance, day ascent, every forward-looking point of interest and the total walk
+- Separate Track panels for day distance, day ascent, every forward-looking point of interest on the selected day and the total walk
 - Matching elapsed, remaining, total and completion-percentage displays for daily distance and ascent
 - Nearest-point matching and progress for the selected day and total planned sections
 - Remaining ascent against total ascent for the selected day and the whole plan

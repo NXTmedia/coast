@@ -178,7 +178,9 @@ export function CoastPathApp() {
     [route, plannedPointsOfInterest],
   );
   const upcomingPois = useMemo(
-    () => route ? upcomingPointsOfInterest(plannedPointsOfInterest, route.checkpoints, days, matched?.distanceKm ?? selectedDay?.startDistanceKm ?? 0) : [],
+    () => route && selectedDay
+      ? upcomingPointsOfInterest(plannedPointsOfInterest, route.checkpoints, days, selectedDay, matched?.distanceKm ?? selectedDay.startDistanceKm)
+      : [],
     [route, plannedPointsOfInterest, days, matched, selectedDay],
   );
   const profilePointsOfInterest = useMemo(
@@ -654,7 +656,7 @@ export function CoastPathApp() {
             </section>
 
             <section className="upcoming-poi-card panel">
-              <div className="upcoming-poi-heading"><span className="poi-icon"><MapPin /></span><div><p className="eyebrow">Points of interest ahead</p><h2>{upcomingPois.length ? `${upcomingPois.length} upcoming` : "No upcoming POIs"}</h2><small>{upcomingPois.length ? (matched ? "From your live position" : `From the start of ${selectedDay.startName}`) : "Add one from the Plan screen."}</small></div></div>
+              <div className="upcoming-poi-heading"><span className="poi-icon"><MapPin /></span><div><p className="eyebrow">Points of interest ahead</p><h2>{upcomingPois.length ? `${upcomingPois.length} upcoming` : "No upcoming POIs"}</h2><small>{upcomingPois.length ? `Day ${selectedDay.order} · ${matched ? "from your live position" : `from ${selectedDay.startName}`}` : `No more POIs on Day ${selectedDay.order}`}</small></div></div>
               {upcomingPois.length > 0 && <ol className="upcoming-poi-list">{upcomingPois.map(({ point, distanceRemainingKm }) => <li key={point.id}><div><strong>{point.name}</strong><small>{formatKm(point.distanceKm)} along the trail</small></div><strong>{formatKm(distanceRemainingKm)} ahead</strong></li>)}</ol>}
             </section>
 
@@ -782,7 +784,7 @@ export function CoastPathApp() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPoiEditorOpen(false); }}>
           <section className="day-editor" role="dialog" aria-modal="true" aria-labelledby="poi-editor-title">
             <div className="editor-heading"><div><p className="eyebrow">Plan item</p><h2 id="poi-editor-title">Add a point of interest</h2></div><button className="close-button" onClick={() => setPoiEditorOpen(false)} aria-label="Close point of interest editor"><X /></button></div>
-            <p className="location-editor-note">Choose a place from your saved Locations. Track will list every point of interest ahead.</p>
+            <p className="location-editor-note">Choose a place from your saved Locations. Track will list points of interest ahead on the selected day.</p>
             <label>Location<select value={poiLocationName} onChange={(event) => setPoiLocationName(event.target.value)}>{route.checkpoints.filter((location) => dayIdContainingDistance(days, location.distanceKm) && !plannedPointsOfInterest.some((point) => point.locationName === location.name)).map((location) => <option key={location.name} value={location.name}>{location.name} · {location.distanceKm.toFixed(1)} km</option>)}</select></label>
             <div className="editor-actions"><button className="secondary-button" onClick={() => setPoiEditorOpen(false)}>Cancel</button><button className="primary-button" onClick={savePointOfInterest}><MapPin size={17} /> Add point</button></div>
           </section>
