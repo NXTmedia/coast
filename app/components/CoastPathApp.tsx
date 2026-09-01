@@ -167,7 +167,7 @@ export function CoastPathApp() {
   const dayDistanceRemaining = Math.max(0, dayDistance - dayProgress);
   const dayDistancePercent = Math.round(dayDistance ? dayProgress / dayDistance * 100 : 0);
   const dayAscentCompleted = Math.max(0, dayAscentTotal - dayAscentRemaining);
-  const dayAscentPercentLeft = Math.round(dayAscentTotal ? dayAscentRemaining / dayAscentTotal * 100 : 0);
+  const dayAscentPercent = Math.round(dayAscentTotal ? dayAscentCompleted / dayAscentTotal * 100 : 0);
   const planDistanceRemaining = Math.max(0, plannedDistance - planProgress);
   const planDistancePercent = Math.round(plannedDistance ? planProgress / plannedDistance * 100 : 0);
   const planAscentPercentLeft = Math.round(planAscentTotal ? planAscentRemaining / planAscentTotal * 100 : 0);
@@ -648,9 +648,9 @@ export function CoastPathApp() {
             </section>
 
             <section className="tracking-card ascent-progress-card panel">
-              <div className="progress-heading"><div><p className="eyebrow"><Mountain size={14} /> Day ascent</p><h2>{formatMetres(dayAscentRemaining)} <small>left</small></h2></div><strong>{dayAscentPercentLeft}% left</strong></div>
-              <div className="progress-track ascent-track" aria-label={`${dayAscentPercentLeft}% of this day's ascent left`}><span style={{ width: `${100 - dayAscentPercentLeft}%` }} /></div>
-              <div className="progress-pair"><div><span>Climbed</span><strong>{formatMetres(dayAscentCompleted)}</strong></div><div><span>Day total</span><strong>{formatMetres(dayAscentTotal)}</strong></div></div>
+              <div className="progress-heading"><div><p className="eyebrow"><Mountain size={14} /> Day ascent</p><h2>{formatMetres(dayAscentCompleted)} <small>elapsed</small></h2></div><strong>{dayAscentPercent}%</strong></div>
+              <div className="progress-track ascent-track" aria-label={`${dayAscentPercent}% of this day's ascent completed`}><span style={{ width: `${dayAscentPercent}%` }} /></div>
+              <div className="progress-pair"><div><span>Remaining</span><strong>{formatMetres(dayAscentRemaining)}</strong></div><div><span>Day total</span><strong>{formatMetres(dayAscentTotal)}</strong></div></div>
             </section>
 
             <section className="next-poi-card panel">

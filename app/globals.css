@@ -82,7 +82,7 @@ button, label, select { -webkit-tap-highlight-color: transparent; }
 .progress-pair span, .total-walk-metrics span, .trail-match span { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
 .progress-pair strong { margin-top: 2px; font-size: 15px; }
 .ascent-progress-card { background: linear-gradient(135deg, #fffefa, #fff1ea); }
-.ascent-progress-card .progress-heading > strong { color: #a95036; font-size: 21px; }
+.ascent-progress-card .progress-heading > strong { color: #a95036; }
 .ascent-track { background: #f0dcd5; }
 .ascent-track span { background: #b85d41; }
 .next-poi-card { padding: 16px 18px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 13px; }

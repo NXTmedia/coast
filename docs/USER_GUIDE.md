@@ -37,7 +37,7 @@ Tap the location button at the top right and allow location access when Safari a
 
 - the marker on the selected day's elevation profile;
 - elapsed and remaining distance through the selected stage;
-- the amount and percentage of ascent left on the selected stage;
+- elapsed, remaining and total ascent, plus the completed percentage of the selected stage;
 - distance to the next planned point of interest ahead;
 - distance and ascent across all planned sections in a separate **Total walk** panel;
 - distance from the trail and the phone's reported accuracy.

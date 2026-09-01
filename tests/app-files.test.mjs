@@ -205,7 +205,10 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /distance-progress-card/);
   assert.match(app, /formatKm\(dayDistanceRemaining\)/);
   assert.match(app, /ascent-progress-card/);
-  assert.match(app, /\{dayAscentPercentLeft\}% left/);
+  assert.match(app, /formatMetres\(dayAscentCompleted\).*<small>elapsed<\/small>/);
+  assert.match(app, /\{dayAscentPercent\}%<\/strong>/);
+  assert.match(app, /<span>Remaining<\/span><strong>\{formatMetres\(dayAscentRemaining\)\}/);
+  assert.doesNotMatch(app, /dayAscentPercentLeft|<small>left<\/small>|% left<\/strong>/);
   assert.match(app, /next-poi-card/);
   assert.match(app, /nextPointOfInterest/);
   assert.match(app, /cleanPlannedPointsOfInterest/);
@@ -219,6 +222,7 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /plannedAscentM\(route, days, matched\?\.distanceKm\)/);
   assert.match(styles, /\.progress-pair/);
   assert.match(styles, /\.ascent-progress-card/);
+  assert.doesNotMatch(styles, /\.ascent-progress-card \.progress-heading > strong \{[^}]*font-size/);
   assert.match(styles, /\.next-poi-card/);
   assert.match(styles, /\.itinerary-poi-row/);
   assert.match(styles, /\.total-walk-card/);
