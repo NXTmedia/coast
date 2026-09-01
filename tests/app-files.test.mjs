@@ -25,17 +25,23 @@ test("ships the PWA and offline route dataset", async () => {
   assert.match(serviceWorker, /hasCachedShell/);
   assert.match(serviceWorker, /if \(!ready\) throw new Error\("The complete app shell could not be cached"\)/);
   assert.doesNotMatch(serviceWorker, /return cached \?\? network/);
-  assert.ok(route.points.filter(Boolean).length > 5800);
-  assert.ok(route.officialDistanceKm > 126 && route.officialDistanceKm < 127);
-  assert.match(route.geometrySource, /Supplied South West Coast Path GPX, Land's End to Falmouth/);
+  assert.equal(route.id, "swcp-gpx-full-mainline-2026-04");
+  assert.equal(route.points.filter(Boolean).length, 38_409);
+  assert.equal(route.points.filter((point) => point === null).length, 10);
+  assert.ok(route.officialDistanceKm > 1025 && route.officialDistanceKm < 1026);
+  assert.match(route.geometrySource, /complete main path Parts 1–11/);
   assert.match(route.elevationSource, /Supplied GPX elevation/);
   assert.match(index, /maximum-scale=1/);
   assert.match(index, /user-scalable=no/);
   assert.match(await readFile(new URL("app/globals.css", root), "utf8"), /touch-action: pan-x pan-y/);
-  assert.deepEqual(route.checkpoints.map((point) => point.name), ["Land's End", "Mousehole", "Penzance", "Porthleven", "Lizard Point", "Coverack", "Helford", "Falmouth"]);
+  assert.equal(route.checkpoints.length, 53);
+  assert.equal(route.checkpoints[0].name, "Minehead");
+  assert.equal(route.checkpoints.at(-1).name, "South Haven Point");
+  assert.ok(route.checkpoints.some((point) => point.name === "Westward Ho!"));
+  assert.ok(route.checkpoints.some((point) => point.name === "The Lizard"));
+  assert.ok(route.checkpoints.some((point) => point.name === "Ferry Bridge (Wyke Regis)"));
   assert.equal(route.checkpoints[0].distanceKm, 0);
-  assert.ok(route.checkpoints[1].distanceKm > 20.9 && route.checkpoints[1].distanceKm < 21.1);
-  assert.ok(route.checkpoints[2].distanceKm > 26.4 && route.checkpoints[2].distanceKm < 26.6);
+  assert.ok(route.checkpoints.at(-1).distanceKm > 1025 && route.checkpoints.at(-1).distanceKm < 1025.3);
 });
 
 test("builds as a static Vite app configured for Netlify", async () => {
@@ -82,7 +88,8 @@ test("includes the requested offline-first features", async () => {
   assert.match(database, /bundledRouteData/);
   assert.match(database, /normalizeDayOrders/);
   assert.match(database, /swcp-gpx-mousehole-falmouth-2026-04/);
-  assert.match(database, /new Set\(\["Land's End"\]\)/);
+  assert.match(database, /previousBundledIds/);
+  assert.match(database, /checkpointsByName/);
   assert.match(database, /pointsOfInterest: "id, locationName"/);
   assert.match(database, /this\.version\(2\)/);
   assert.match(days, /order: index \+ 1/);
@@ -178,7 +185,7 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /prepareRouteImport\(route, imported, days\)/);
   assert.match(app, /replaceRouteAndDays\(prepared\.route, prepared\.days\)/);
   assert.match(app, /GPX import cancelled\. Nothing was changed\./);
-  assert.match(app, /Restore the bundled Land’s End–Falmouth route\?/);
+  assert.match(app, /Restore the bundled full South West Coast Path route\?/);
   assert.match(app, /Bundled-route restoration cancelled\. Nothing was changed\./);
   assert.doesNotMatch(app, /fetch\("\/data\/swcp-route\.json"\)/);
   assert.match(app, /role="status" aria-live="polite"/);
@@ -231,7 +238,7 @@ test("includes the requested offline-first features", async () => {
 });
 
 test("keeps one maintained route-data path and no obsolete map tooling", async () => {
-  const [packageJson, lockfile, vite, types, database, styles, app, readme, architecture] = await Promise.all([
+  const [packageJson, lockfile, vite, types, database, styles, app, readme, architecture, generator] = await Promise.all([
     readFile(new URL("package.json", root), "utf8").then(JSON.parse),
     readFile(new URL("package-lock.json", root), "utf8"),
     readFile(new URL("vite.config.ts", root), "utf8"),
@@ -241,9 +248,10 @@ test("keeps one maintained route-data path and no obsolete map tooling", async (
     readFile(new URL("app/components/CoastPathApp.tsx", root), "utf8"),
     readFile(new URL("README.md", root), "utf8"),
     readFile(new URL("docs/ARCHITECTURE.md", root), "utf8"),
+    readFile(new URL("scripts/build-full-route.mjs", root), "utf8"),
   ]);
 
-  assert.equal(packageJson.scripts["route:data"], undefined);
+  assert.match(packageJson.scripts["route:data"], /build-full-route/);
   assert.equal(packageJson.devDependencies.osmtogeojson, undefined);
   assert.doesNotMatch(lockfile, /osmtogeojson/);
   assert.doesNotMatch(vite, /maplibre/i);
@@ -251,9 +259,13 @@ test("keeps one maintained route-data path and no obsolete map tooling", async (
   assert.doesNotMatch(database, /export async function replaceRoute\(/);
   assert.doesNotMatch(styles, /\.hero-row/);
   assert.doesNotMatch(app, /locations-workspace|simulation-card/);
-  assert.match(packageJson.scripts["route:segment"], /extract-gpx-segment/);
+  assert.equal(packageJson.scripts["route:segment"], undefined);
   assert.match(readme, /single supported route-generation path/);
   assert.match(architecture, /only maintained route-generation script/);
+  assert.match(generator, /Part \$\{index \+ 1\}/);
+  assert.match(generator, /No.*Stop.*Latitude.*Longitude/s);
+  assert.match(generator, /sourceOrderChanges/);
   await assert.rejects(access(new URL("app/chatgpt-auth.ts", root)));
   await assert.rejects(access(new URL("scripts/build-route-data.mjs", root)));
+  await assert.rejects(access(new URL("scripts/extract-gpx-segment.mjs", root)));
 });

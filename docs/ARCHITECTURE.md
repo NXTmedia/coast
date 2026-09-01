@@ -27,37 +27,26 @@ The root viewport uses the device width at a fixed scale of one and disables use
 - `app/lib/days.ts` keeps itinerary order contiguous after additions, deletions and drag-and-drop moves while retaining break positions.
 - `app/lib/planning.ts` contains planned-distance, progress, point-of-interest resolution and automatic stage/break-date rules.
 - `app/lib/route.ts` contains route slicing, elevation totals, GPX import, coordinate matching, route migration, simulation and OS Maps link generation.
-- `scripts/extract-gpx-segment.mjs` reproducibly extracts and cleans the bundled Land's End-to-Falmouth GPX section.
+- `scripts/build-full-route.mjs` reproducibly builds the bundled full-path route and snaps the supplied CSV locations to it.
 - `public/sw.js` caches the generated application shell for offline startup.
 - `netlify.toml` defines the static build, publish directory, SPA fallback and service-worker cache headers.
 - `tests/` contains automated tests for the important planning, route, GPS, persistence and PWA behaviours.
 
 ## Route and elevation data
 
-The bundled route is stored in `app/data/swcp-route.json` and compiled into the application at build time. It is extracted from the user-supplied whole-path elevation GPX. Only Land's End to Falmouth is retained. The source file contains the main tracks twice and repeats each coordinate three times; the extraction step keeps the first copy and removes exact consecutive duplicates.
+The bundled route is stored in `app/data/swcp-route.json` and compiled into the application at build time. It is generated from the user-supplied whole-path elevation GPX. The linear route keeps the first copy of main-path Parts 1–11, from Minehead to South Haven Point. Named loops and spurs are deliberately excluded because inserting them into one distance axis would inflate the total and make progress run backwards. The source file contains all tracks twice and repeats each coordinate three times; generation keeps the first main-path copy and removes exact consecutive duplicates.
 
-The GPX segment extractor is the only maintained route-generation script. The superseded illustrative OpenStreetMap generator and its conversion dependency have been removed so the repository has one authoritative data path.
+The full-route GPX/CSV builder is the only maintained route-generation script. The segment extractor, superseded illustrative OpenStreetMap generator and its conversion dependency have been removed so the repository has one authoritative data path.
 
-The resulting route contains 5,834 points, approximately 126.5 km of path and the supplied elevation values. The Land's End-to-Mousehole section is approximately 21.0 km. A track boundary near Helford remains a deliberate break so route matching does not invent a line across the gap. Importing another GPX from the Locations screen's advanced route-data area replaces both geometry and elevation locally.
+The resulting route contains 38,409 points, approximately 1,025.5 km of path, 10 deliberate boundaries between its 11 parts and the supplied elevation values. Boundaries remain as `null` breaks so route matching does not invent connecting lines. Importing another GPX from the Locations screen's advanced route-data area replaces both geometry and elevation locally.
 
-The eight default planning locations were snapped to the nearest supplied GPX point:
-
-| Location | Matched latitude | Matched longitude | Distance along route |
-|---|---:|---:|---:|
-| Land's End | 50.066249 | -5.714878 | 0.0 km |
-| Mousehole | 50.083671 | -5.538764 | 21.0 km |
-| Penzance | 50.119316 | -5.533253 | 26.5 km |
-| Porthleven | 50.085023 | -5.316053 | 49.1 km |
-| Lizard Point | 49.959480 | -5.206519 | 71.7 km |
-| Coverack | 50.023079 | -5.096928 | 88.8 km |
-| Helford | 50.093298 | -5.135753 | 110.1 km |
-| Falmouth | 50.155225 | -5.068876 | 126.5 km |
+The 53 default planning locations come from the supplied itinerary CSV. Its `No`, `Stop`, `Latitude` and `Longitude` columns are validated, each coordinate is projected to the closest position on the GPX line, and the results are sorted by route distance. This makes the route itself authoritative for location order. The largest offset is River Yealm at approximately 8 km from the main line; its snapped position sorts after Wembury. The generated JSON contains the complete matched list, from Minehead at 0 km to South Haven Point at approximately 1,025.2 km.
 
 The bottom navigation contains Track, Plan and Locations. Plan owns walking-day scheduling, break placement and the selection of saved Locations as points of interest. Locations edits the active route's checkpoint list and also contains GPS simulation, the separate real-GPS coordinate check, and an expandable advanced section for GPX import, bundled-route restoration and route facts. New or edited place coordinates are projected to the nearest point on the active GPX route before being saved. At least two locations are retained so a walking day can always have a start and end. A location referenced by any planned stage or point of interest cannot be deleted until those plan items are changed, preventing names and route boundaries from becoming inconsistent.
 
 ## Location pipeline
 
-Real location readings come from `navigator.geolocation.watchPosition()` with high accuracy requested. Simulation creates an iPhone-shaped reading approximately 3 km after Lizard Point, including latitude, longitude, accuracy, altitude, heading and speed. Both sources feed the same pipeline:
+Real location readings come from `navigator.geolocation.watchPosition()` with high accuracy requested. Simulation creates an iPhone-shaped reading approximately 3 km after The Lizard, including latitude, longitude, accuracy, altitude, heading and speed. Both sources feed the same pipeline:
 
 1. Receive a GPS coordinate.
 2. Find the nearest projected point on the route line.
@@ -74,9 +63,9 @@ Track-screen endpoint links use the selected saved locations' matched route coor
 
 ## Persistence and offline operation
 
-Dexie stores the active route (including its editable saved locations), walking stages, points of interest, the itinerary start date and other settings in the browser's IndexedDB database named `coastline-swcp`. Walking stages use stable IDs, a numeric order and an optional break-after marker. Points of interest use stable IDs and a saved-location name; their coordinates and route distance are resolved from the active route, so location data is not duplicated. The database's version 2 migration adds this collection without replacing existing plans. Order and dates are repaired on every load and after changes. Missing or duplicate POI references are cleaned up on load. When an older bundled route is detected, compatible walking stages and custom locations are rematched by coordinate. The Land's End upgrade inserts the new prefix location while preserving the user's existing Mousehole-to-Falmouth plan. The former Minehead-to-Combe-Martin starter days are removed and replaced by the new segment default when necessary. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
+Dexie stores the active route (including its editable saved locations), walking stages, points of interest, the itinerary start date and other settings in the browser's IndexedDB database named `coastline-swcp`. Walking stages use stable IDs, a numeric order and an optional break-after marker. Points of interest use stable IDs and a saved-location name; their coordinates and route distance are resolved from the active route, so location data is not duplicated. The database's version 2 migration adds this collection without replacing existing plans. Order and dates are repaired on every load and after changes. Missing or duplicate POI references are cleaned up on load. When any earlier bundled route is detected, compatible walking stages and existing locations are rematched by coordinate. The 53 new CSV locations are merged by case-insensitive name so distinct custom locations remain available. A new device gets one Minehead-to-Porlock Weir starter stage; an existing compatible plan is preserved. The repaired list is written back as a full replacement so obsolete records cannot reappear later.
 
-Before an imported GPX replaces the active route, the app parses its line geometry and elevation, calculates cumulative distance, then determines how many saved locations and planned stages can be rematched within five kilometres. Those counts and any removals are presented for confirmation. Cancelling performs no writes. On confirmation, the new route and all successfully rematched stages are committed in one IndexedDB transaction; the itinerary start-date setting is retained. New GPX endpoints are added only when no preserved location already represents them. If no existing stage survives, normal loading creates one stage between the first and last available locations. Restoring the bundled route follows the same confirmed, transactional rematching flow and merges the eight bundled locations with compatible current locations.
+Before an imported GPX replaces the active route, the app parses its line geometry and elevation, calculates cumulative distance, then determines how many saved locations and planned stages can be rematched within five kilometres. Those counts and any removals are presented for confirmation. Cancelling performs no writes. On confirmation, the new route and all successfully rematched stages are committed in one IndexedDB transaction; the itinerary start-date setting is retained. New GPX endpoints are added only when no preserved location already represents them. If no existing stage survives, normal loading creates one stage between the first and last available locations. Restoring the bundled route follows the same confirmed, transactional rematching flow and merges the 53 bundled locations with compatible current locations.
 
 The supplied route is embedded in the generated JavaScript, so it never requires a separate startup request. The service worker fetches the static application page, discovers its same-origin JavaScript and stylesheet references, and caches those assets alongside the manifest. It validates the expected JavaScript, stylesheet and manifest content types so Netlify's HTML fallback cannot be mistaken for a missing application asset. It writes a versioned readiness marker only after the complete shell is stored; an incomplete new version is not allowed to replace the previous working cache. On iOS, an already-controlled offline launch is recognised immediately, registration waits are bounded, and the app retries preparation when connectivity returns. Planning, elevation, GPS matching and simulation do not require a network connection after preparation. Opening OS Maps and importing a remotely stored GPX may require connectivity depending on the device and file location.
 
@@ -88,7 +77,7 @@ The application is a client-only React 19 app built by Vite into static files in
 
 Run `npm test` for the automated suite and `npm run build` for the production compilation check. Tests cover:
 
-- offline assets and route bundling;
+- offline assets and full-route bundling, including GPX deduplication and CSV-derived locations;
 - complete service-worker preparation and transitive asset caching;
 - offline relaunch with cached navigation and application scripts;
 - failed-update protection and recovery when connectivity returns;

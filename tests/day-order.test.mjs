@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeDayOrders, removeLegacyStarterDays, reorderWalkingDays } from "../app/lib/days.ts";
+import { normalizeDayOrders, reorderWalkingDays } from "../app/lib/days.ts";
 
 const day = (id, order) => ({
   id,
@@ -29,15 +29,6 @@ test("sorts and renumbers days without mutating stored records", () => {
     { id: "third", order: 3 },
   ]);
   assert.deepEqual(original.map(({ order }) => order), [7, 1, 3]);
-});
-
-test("removes obsolete bundled starter days during the Penzance route upgrade", () => {
-  const days = [
-    { ...day("old-1", 1), startName: "Minehead", endName: "Porlock Weir" },
-    { ...day("old-2", 2), startName: "Porlock Weir", endName: "Lynmouth" },
-    { ...day("planned", 3), startName: "Penzance", endName: "Porthleven" },
-  ];
-  assert.deepEqual(removeLegacyStarterDays(days).map(({ id }) => id), ["planned"]);
 });
 
 test("reorders stages, renumbers them and keeps breaks at their itinerary position", () => {

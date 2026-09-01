@@ -1,7 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Checkpoint, PlannedPointOfInterest, TrailRoute, WalkingDay } from "../types";
 import bundledRouteData from "../data/swcp-route.json";
-import { normalizeDayOrders, removeLegacyStarterDays } from "./days";
+import { normalizeDayOrders } from "./days";
 import { fillWalkingDayDates } from "./planning";
 import { migrateCheckpointsToRoute, migrateDaysToRoute } from "./route";
 
@@ -43,10 +43,7 @@ function fallbackId() {
 }
 
 function defaultDays(route: TrailRoute): WalkingDay[] {
-  const hasBundledStops = route.checkpoints.some((point) => point.name === "Porlock Weir");
-  const defaults = hasBundledStops
-    ? [["Minehead", "Porlock Weir"], ["Porlock Weir", "Lynmouth"], ["Lynmouth", "Combe Martin"]]
-    : [[route.checkpoints[0].name, route.checkpoints.at(-1)!.name]];
+  const defaults = [[route.checkpoints[0].name, route.checkpoints[1]?.name ?? route.checkpoints.at(-1)!.name]];
   return defaults.map(([startName, endName], index) => {
     const start = route.checkpoints.find((point) => point.name === startName)!;
     const end = route.checkpoints.find((point) => point.name === endName)!;
@@ -70,27 +67,20 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
   let storageReady = true;
   try {
     const storedRoute = (await withTimeout(db.routes.get("active")))?.data;
+    const previousBundledIds = new Set([
+      "swcp-gpx-penzance-falmouth-2026-04",
+      "swcp-gpx-mousehole-falmouth-2026-04",
+      "swcp-gpx-lands-end-falmouth-2026-04",
+    ]);
     const isPreviousBundledRoute = storedRoute && storedRoute.id !== bundledRoute.id
-      && (storedRoute.id.startsWith("swcp-osm-")
-        || storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04"
-        || storedRoute.id === "swcp-gpx-mousehole-falmouth-2026-04");
+      && (storedRoute.id.startsWith("swcp-osm-") || previousBundledIds.has(storedRoute.id));
     if (isPreviousBundledRoute) {
       previousBundledRoute = storedRoute;
-      if (storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04" || storedRoute.id === "swcp-gpx-mousehole-falmouth-2026-04") {
-        const migrated = migrateCheckpointsToRoute(storedRoute.checkpoints, bundledRoute);
-        const addedPrefixNames = storedRoute.id === "swcp-gpx-penzance-falmouth-2026-04"
-          ? new Set(["Land's End", "Mousehole"])
-          : new Set(["Land's End"]);
-        const addedPrefix = bundledRoute.checkpoints.filter((checkpoint) => addedPrefixNames.has(checkpoint.name));
-        const migratedNames = new Set(migrated.map((checkpoint) => checkpoint.name.toLowerCase()));
-        route = {
-          ...bundledRoute,
-          checkpoints: [...addedPrefix.filter((checkpoint) => !migratedNames.has(checkpoint.name.toLowerCase())), ...migrated]
-            .sort((a, b) => a.distanceKm - b.distanceKm),
-        };
-      } else {
-        route = bundledRoute;
+      const checkpointsByName = new Map(bundledRoute.checkpoints.map((checkpoint) => [checkpoint.name.toLowerCase(), checkpoint]));
+      for (const checkpoint of migrateCheckpointsToRoute(storedRoute.checkpoints, bundledRoute)) {
+        if (!checkpointsByName.has(checkpoint.name.toLowerCase())) checkpointsByName.set(checkpoint.name.toLowerCase(), checkpoint);
       }
+      route = { ...bundledRoute, checkpoints: [...checkpointsByName.values()].sort((a, b) => a.distanceKm - b.distanceKm) };
     } else {
       route = storedRoute ?? bundledRoute;
     }
@@ -105,7 +95,6 @@ export async function loadInitialData(): Promise<{ route: TrailRoute; days: Walk
     storageReady = false;
   }
   if (previousBundledRoute && days.length) days = migrateDaysToRoute(days, previousBundledRoute, route);
-  if (route.id === bundledRoute.id) days = removeLegacyStarterDays(days);
   if (!days.length) days = defaultDays(route);
   days = normalizeDayOrders(days);
 

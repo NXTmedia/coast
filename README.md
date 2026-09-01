@@ -4,7 +4,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 
 ## What works
 
-- A Land's End-to-Falmouth starter day, plus create/edit/delete planning tools
+- The complete Minehead-to-South Haven Point main path, with a lightweight Minehead-to-Porlock Weir starter stage
 - One-tap “start where the previous day ended” planning
 - Walking-stage start and end selection from the saved Locations list
 - One Plan **Add** menu for stages, saved-location points of interest and break days
@@ -19,7 +19,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - Live GPS position marker on the selected day's elevation profile
 - Interactive coloured POI markers on the profile, with a single name label revealed by hover, keyboard focus or tap
 - High-accuracy iPhone browser location via `watchPosition`
-- GPS simulation about 3 km beyond Lizard Point for testing without sharing device location
+- GPS simulation about 3 km beyond The Lizard for testing without sharing device location
 - Optional live GPS check on the Locations screen showing the phone's latitude, longitude and reported accuracy
 - Separate Track panels for day distance, day ascent, the next point of interest and the total walk
 - Elapsed and remaining daily distance, plus percentage of the day's ascent left
@@ -68,19 +68,19 @@ The automated offline regression suite runs the service worker inside a simulate
 
 ## Trail data
 
-The bundled route is extracted from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. Only the forward Land's End-to-Falmouth section is retained. Exact consecutive duplicates and the repeated second copy of the whole GPX are removed, leaving 5,834 points over approximately 126.5 km with the supplied elevation values. Land's End to Mousehole accounts for approximately 21.0 km of this route.
+The bundled route is generated from the supplied `uploads-2026-04-South_West_Coast_Path_Elev.gpx`. It contains the complete main South West Coast Path from Minehead to South Haven Point: Parts 1–11, 38,409 route points, 10 deliberate track breaks and approximately 1,025.5 km with the supplied elevation values. The source repeats every coordinate three times and contains a second copy of its tracks; those duplicates are removed. Named loop and spur tracks are excluded from the single linear progress axis so they cannot inflate or reverse distance.
 
-The eight default planning locations are Land's End, Mousehole, Penzance, Porthleven, Lizard Point, Coverack, Helford and Falmouth. Their place coordinates were resolved and then snapped to the closest GPX point. The resulting matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations on the dedicated **Locations** screen; those changes are stored locally in IndexedDB.
+The 53 default planning locations come from `swcp_itinerary_stops_with_coords.csv`. Each CSV coordinate is projected to the nearest position on the GPX route, then the locations are sorted by matched route distance. Most are close to the line; the supplied River Yealm coordinate is about 8 km away and consequently matches just after Wembury. The matched coordinates are stored in the bundled route. Users can add, edit and remove saved locations on the dedicated **Locations** screen; those changes are stored locally in IndexedDB.
 
-The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the expandable **Route data & GPX** area on the **Locations** screen. To regenerate the bundled segment from the supplied full-route GPX:
+The loader is isolated in `app/lib/route.ts`. A GPX can be imported from the expandable **Route data & GPX** area on the **Locations** screen. To regenerate the bundled route and default locations from the two supplied source files:
 
 ```bash
-npm run route:segment -- path/to/full-route.gpx app/data/swcp-route.json
+npm run route:data -- path/to/full-route.gpx path/to/swcp_itinerary_stops_with_coords.csv app/data/swcp-route.json
 ```
 
-This supplied-GPX extraction command is the single supported route-generation path. The earlier illustrative OpenStreetMap generator has been removed.
+This full-route build command is the single supported route-generation path. The earlier segment extractor and illustrative OpenStreetMap generator have been removed.
 
-Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled Land's End–Falmouth route** uses the same confirmation and rematching safeguards while also restoring the eight default planning locations.
+Before an import is saved, the app reports how many current locations and stages can be rematched within five kilometres of the new route. Cancelling leaves the device unchanged. Confirming stores the new route and rematched plan together while retaining the itinerary start date. Items outside the tolerance are removed. If no stage can be preserved, the app creates one default stage across the imported route. **Restore bundled full South West Coast Path route** uses the same confirmation and rematching safeguards while also restoring the 53 default planning locations.
 
 Cloud sync is intentionally not included. IndexedDB remains the source of truth for this version, leaving accounts and shared sync as a later extension.
 

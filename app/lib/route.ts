@@ -64,8 +64,10 @@ export function routePointAt(route: TrailRoute, distanceKm: number): RoutePoint 
   return previous;
 }
 
-export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "Lizard Point", offsetKm = 3): GpsReading | null {
-  const checkpoint = route.checkpoints.find((point) => point.name === checkpointName) ?? route.checkpoints[0];
+export function simulatedGpsNearCheckpoint(route: TrailRoute, checkpointName = "The Lizard", offsetKm = 3): GpsReading | null {
+  const checkpoint = route.checkpoints.find((point) => point.name === checkpointName)
+    ?? route.checkpoints.find((point) => point.name === "Lizard Point")
+    ?? route.checkpoints[0];
   if (!checkpoint) return null;
   const point = routePointAt(route, Math.min(route.officialDistanceKm, checkpoint.distanceKm + offsetKm));
   if (!point) return null;

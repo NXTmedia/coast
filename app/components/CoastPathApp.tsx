@@ -130,7 +130,10 @@ export function CoastPathApp() {
 
   const selectedDay = days.find((day) => day.id === selectedId) ?? days[0];
   const selectedIndex = selectedDay ? days.findIndex((day) => day.id === selectedDay.id) : -1;
-  const simulationLocationLabel = route?.checkpoints.some((point) => point.name === "Lizard Point") ? "after Lizard Point" : "near the route start";
+  const simulationCheckpointName = route?.checkpoints.some((point) => point.name === "The Lizard")
+    ? "The Lizard"
+    : route?.checkpoints.some((point) => point.name === "Lizard Point") ? "Lizard Point" : "";
+  const simulationLocationLabel = simulationCheckpointName ? `after ${simulationCheckpointName}` : "near the route start";
   const matched = useMemo(
     () => route && gps ? nearestRoutePosition(route, gps.longitude, gps.latitude) : null,
     [route, gps],
@@ -240,7 +243,7 @@ export function CoastPathApp() {
     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     setWatchId(null);
     setTrackGps(false);
-    const simulated = route ? simulatedGpsNearCheckpoint(route) : null;
+    const simulated = route ? simulatedGpsNearCheckpoint(route, simulationCheckpointName || undefined) : null;
     if (!simulated) {
       setGpsError("A simulated location could not be created for this route.");
       return;
@@ -512,12 +515,12 @@ export function CoastPathApp() {
     const unmatchedLocations = route.checkpoints.length - prepared.matchedLocationCount;
     const unmatchedDays = days.length - prepared.days.length;
     const warning = [
-      "Restore the bundled Land’s End–Falmouth route?",
+      "Restore the bundled full South West Coast Path route?",
       `${prepared.matchedLocationCount} of ${route.checkpoints.length} current locations and ${prepared.days.length} of ${days.length} planned stages can be matched to it.`,
       unmatchedLocations || unmatchedDays
         ? `${unmatchedLocations} locations and ${unmatchedDays} stages are more than 5 km from the bundled route and will be removed.`
         : "All current locations and planned stages will be preserved.",
-      "The eight bundled planning locations will also be restored. Your itinerary start date will be kept.",
+      `The ${bundled.checkpoints.length} bundled planning locations will also be restored. Your itinerary start date will be kept.`,
     ].join("\n\n");
     if (!window.confirm(warning)) {
       setNotice("Bundled-route restoration cancelled. Nothing was changed.");
@@ -708,7 +711,7 @@ export function CoastPathApp() {
                 </article>)}
               </div>
             </section>
-            <article className="panel locations-simulation"><div><p className="eyebrow"><Satellite size={14} /> Testing</p><h2>Simulated GPS</h2><p>Test the live progress display with an iPhone-like reading about 3 km beyond Lizard Point.</p></div><label className="simulation-toggle" htmlFor="simulate-gps" aria-label="Simulate GPS"><input id="simulate-gps" type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View Track</button>}</article>
+            <article className="panel locations-simulation"><div><p className="eyebrow"><Satellite size={14} /> Testing</p><h2>Simulated GPS</h2><p>Test the live progress display with an iPhone-like reading about 3 km beyond The Lizard.</p></div><label className="simulation-toggle" htmlFor="simulate-gps" aria-label="Simulate GPS"><input id="simulate-gps" type="checkbox" role="switch" checked={simulateGps} onChange={toggleGpsSimulation} /><span className="toggle-track"><i /></span><span><strong>Simulate GPS</strong><small>{simulateGps ? `Test location ${simulationLocationLabel} is active` : `Use a location ${simulationLocationLabel}`}</small></span></label>{simulateGps && <button className="secondary-button" onClick={() => setTab("track")}><Navigation size={16} /> View Track</button>}</article>
             <article className="gps-check-card panel locations-gps">
               <div><p className="eyebrow"><LocateFixed size={14} /> Location services</p><h2>Check your GPS</h2><p>Show the coordinates supplied by your phone. Switch this on, then tap the location button at the top right.</p></div>
               <label className="simulation-toggle" htmlFor="track-gps" aria-label="Track GPS"><input id="track-gps" type="checkbox" role="switch" checked={trackGps} onChange={toggleGpsTracking} /><span className="toggle-track"><i /></span><span><strong>Track GPS</strong><small>{trackGps ? "Coordinate display is on" : "Coordinate display is off"}</small></span></label>
@@ -725,7 +728,7 @@ export function CoastPathApp() {
               <summary><span><RouteIcon /> Route data &amp; GPX</span><small>Import, restore or inspect the offline trail</small></summary>
               <div className="advanced-route-content">
                 <div className="route-facts"><div><span>Active route</span><strong>{route.name}</strong></div><div><span>Length</span><strong>{formatKm(route.officialDistanceKm)}</strong></div><div><span>Points</span><strong>{route.points.filter(Boolean).length.toLocaleString()}</strong></div><div><span>Elevation</span><strong>{route.elevationSource}</strong></div></div>
-                <div className="route-import"><p>A GPX track with elevation replaces the current route after confirmation. Saved locations and stages are matched onto it where possible.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => { handleImport(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled Land’s End–Falmouth route</button></div>
+                <div className="route-import"><p>A GPX track with elevation replaces the current route after confirmation. Saved locations and stages are matched onto it where possible.</p><label className="primary-button file-button"><FileUp size={18} /> Choose GPX file<input type="file" accept=".gpx,application/gpx+xml" onChange={(event) => { handleImport(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label><button className="text-button" onClick={restoreBundled}>Restore bundled full South West Coast Path route</button></div>
                 <div className="offline-explainer"><CloudOff /><div><strong>Available offline</strong><p>The active route and its {route.points.filter(Boolean).length.toLocaleString()} elevation points are stored on this device.</p></div></div>
               </div>
             </details>

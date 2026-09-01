@@ -1,4 +1,4 @@
-const VERSION = "coastline-v36";
+const VERSION = "coastline-v37";
 const SHELL_CACHE = `${VERSION}-shell`;
 const SHELL = ["/", "/manifest.json"];
 const READY_MARKER = "/__coastline_offline_ready__";

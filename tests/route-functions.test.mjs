@@ -17,7 +17,7 @@ const route = {
     { lng: -3.95, lat: 50, elevationM: 40, distanceKm: 5 },
     { lng: -3.9, lat: 50, elevationM: 20, distanceKm: 10 },
   ],
-  checkpoints: [{ name: "Lizard Point", lng: -3.95, lat: 50, distanceKm: 5 }],
+  checkpoints: [{ name: "The Lizard", lng: -3.95, lat: 50, distanceKm: 5 }],
 };
 
 test("coordinates are matched to the nearest position along the route", () => {
@@ -57,7 +57,7 @@ test("remaining ascent includes partial climbs for a day and the whole plan", ()
   assert.equal(plannedAscentM(climbingRoute, plannedDays, 35), 0);
 });
 
-test("GPS simulation creates an iPhone-like reading 3 km after Lizard Point", () => {
+test("GPS simulation creates an iPhone-like reading 3 km after The Lizard", () => {
   const gps = simulatedGpsNearCheckpoint(route);
   assert.ok(gps);
   assert.equal(gps.accuracy, 6);

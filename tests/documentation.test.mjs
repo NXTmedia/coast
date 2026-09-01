@@ -25,7 +25,9 @@ test("documentation covers the current navigation, GPS, offline and GPX workflow
   assert.doesNotMatch(architecture, /Edit-screen verification links/);
   assert.match(guide, /Wait for \*\*Offline ready\*\*/);
   assert.match(guide, /5 km of the new route/);
-  assert.match(guide, /Restore bundled Land's End–Falmouth route/);
+  assert.match(guide, /Restore bundled full South West Coast Path route/);
+  assert.match(readme, /38,409 route points/);
+  assert.match(architecture, /Parts 1–11/);
   assert.match(guide, /Add → Point of interest/);
   assert.match(guide, /automatically placed beneath the stage/);
   assert.match(guide, /purple dots on the elevation profile/);

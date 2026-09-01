@@ -7,7 +7,7 @@
 3. Use Safari's **Share → Add to Home Screen** action.
 4. Open the installed app once more while online and wait for **Offline ready** before relying on it without a connection.
 
-The interface, bundled Land's End-to-Falmouth route, elevation profile and saved plan then work without mobile data. OS Maps links remain external and may need connectivity or map data already available in the OS Maps app.
+The interface, complete bundled Minehead-to-South Haven Point route, elevation profile and saved plan then work without mobile data. OS Maps links remain external and may need connectivity or map data already available in the OS Maps app.
 
 ## Plan the walk
 
@@ -50,7 +50,7 @@ To inspect location services directly, open **Locations**, enable **Track GPS**,
 
 ## Use simulated GPS
 
-On **Locations**, enable **Simulate GPS** to create an iPhone-like reading approximately 3 km after Lizard Point. It follows the same route-matching and progress pipeline as a real reading. If that point belongs to a planned stage, the app selects it automatically. Simulation and the real-GPS coordinate check are kept separate.
+On **Locations**, enable **Simulate GPS** to create an iPhone-like reading approximately 3 km after The Lizard. It follows the same route-matching and progress pipeline as a real reading. If that point belongs to a planned stage, the app selects it automatically. Simulation and the real-GPS coordinate check are kept separate.
 
 ## Import a GPX route
 
@@ -64,7 +64,7 @@ Before changing the device, the confirmation shows:
 
 Cancel to leave all local data unchanged. Confirm to save the imported route and preserved plan together. The itinerary start date remains unchanged. If no stage can be preserved, one default stage is created across the imported route.
 
-**Restore bundled Land's End–Falmouth route** first reports how many current locations and stages can be rematched. Cancelling changes nothing. Confirming restores the supplied route and eight default locations, keeps compatible current locations and stages, and retains the itinerary start date.
+**Restore bundled full South West Coast Path route** first reports how many current locations and stages can be rematched. Cancelling changes nothing. Confirming restores the supplied route and 53 default locations, keeps compatible current locations and stages, and retains the itinerary start date.
 
 ## Device-local data and limitations
 
