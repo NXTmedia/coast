@@ -28,6 +28,7 @@ test("documentation covers the current navigation, GPS, offline and GPX workflow
   assert.match(guide, /Restore bundled Land's End–Falmouth route/);
   assert.match(guide, /Add → Point of interest/);
   assert.match(guide, /automatically placed beneath the stage/);
+  assert.match(guide, /purple dots on the elevation profile/);
   assert.match(guide, /percentage of ascent left/);
   assert.match(guide, /There is no account, cloud sync, plan export or cross-device backup/);
   assert.match(guide, /new website address has its own IndexedDB storage/);

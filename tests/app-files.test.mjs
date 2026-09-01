@@ -101,6 +101,14 @@ test("includes the requested offline-first features", async () => {
   assert.match(styles, /\.gps-coordinate-display/);
   assert.match(app, /ReferenceDot/);
   assert.match(app, /You are here/);
+  assert.match(app, /ProfilePoiDot/);
+  assert.match(app, /profilePointsOfInterest/);
+  assert.match(app, /profile-poi-label/);
+  assert.match(app, /onMouseEnter=\{\(\) => onHover\(true\)\}/);
+  assert.match(app, /onClick=\{onToggle\}/);
+  assert.match(app, /event\.key === "Enter" \|\| event\.key === " "/);
+  assert.match(styles, /\.profile-poi-marker/);
+  assert.match(styles, /\.profile-poi-label/);
   assert.match(app, /Previous walking day/);
   assert.match(app, /Next walking day/);
   assert.match(app, /dayIdForDate\(loadedDays, localDateKey\(\)\)/);

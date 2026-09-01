@@ -44,6 +44,8 @@ Tap the location button at the top right and allow location access when Safari a
 
 The profile marker appears only when the matched position lies inside the selected stage. Tap the top-right location button again to stop the active reading.
 
+Planned points of interest inside the selected stage appear as purple dots on the elevation profile. Hover over a dot with a pointer, focus it with a keyboard, or tap it on the phone to show the place name and distance into the day. Tap the same dot again to dismiss the pinned label; tapping another dot switches the label.
+
 To inspect location services directly, open **Locations**, enable **Track GPS**, then tap the top-right location button. The panel shows acquisition status, latitude, longitude, accuracy or a permission error. Enabling this check turns off simulated GPS.
 
 ## Use simulated GPS
