@@ -190,12 +190,17 @@ test("includes the requested offline-first features", async () => {
   assert.match(app, /\{dayAscentPercentLeft\}% left/);
   assert.match(app, /next-poi-card/);
   assert.match(app, /nextPointOfInterest/);
+  assert.match(app, /itinerary-poi-row/);
+  assert.match(app, /dayIdContainingDistance\(days, point\.distanceKm\) === day\.id/);
+  assert.match(app, /km into Day/);
+  assert.doesNotMatch(app, /planned-pois/);
   assert.match(app, /total-walk-card/);
   assert.match(app, /formatMetres\(planAscentRemaining\)/);
   assert.match(app, /plannedAscentM\(route, days, matched\?\.distanceKm\)/);
   assert.match(styles, /\.progress-pair/);
   assert.match(styles, /\.ascent-progress-card/);
   assert.match(styles, /\.next-poi-card/);
+  assert.match(styles, /\.itinerary-poi-row/);
   assert.match(styles, /\.total-walk-card/);
   assert.match(planning, /export function nextPointOfInterest/);
   assert.match(matching, /export function ascentBetween/);

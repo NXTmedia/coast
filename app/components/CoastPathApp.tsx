@@ -21,7 +21,7 @@ import { normalizeDayOrders, reorderWalkingDays } from "../lib/days";
 import {
   breakDateAfter, dayDistanceKm, dayIdContainingDistance, dayIdForDate, daysUsingLocation,
   fillWalkingDayDates, localDateKey, nextPointOfInterest, plannedProgressKm, resolvePointsOfInterest,
-  totalPlannedDistanceKm,
+  totalPlannedDistanceKm, type ResolvedPointOfInterest,
 } from "../lib/planning";
 import {
   ascentBetween, ascentDescent, importGpx, nearestRoutePosition, osMapsUrl, plannedAscentM, pointsForDay,
@@ -648,11 +648,12 @@ export function CoastPathApp() {
                     onCancelDelete={() => setPendingDayDeleteId(null)}
                     onConfirmDelete={() => deleteDay(day)}
                     onRemoveBreak={() => setBreakAfter(day.id, false)}
+                    pointsOfInterest={resolvedPointsOfInterest.filter((point) => dayIdContainingDistance(days, point.distanceKm) === day.id)}
+                    onRemovePointOfInterest={removePointOfInterest}
                   />)}
                 </div>
               </SortableContext>
             </DndContext>
-            {resolvedPointsOfInterest.length > 0 && <section className="planned-pois panel"><div className="planned-pois-heading"><div><p className="eyebrow"><MapPin size={14} /> Along the route</p><h2>Points of interest</h2></div><small>{resolvedPointsOfInterest.length} planned</small></div><div className="planned-poi-list">{resolvedPointsOfInterest.map((point) => <article key={point.id}><span className="location-pin"><MapPin /></span><div><strong>{point.name}</strong><small>{point.distanceKm.toFixed(1)} km along the route</small></div><button onClick={() => removePointOfInterest(point)} aria-label={`Remove ${point.name} point of interest`}><X /></button></article>)}</div></section>}
             {!days.length && <div className="empty-state"><MapPin /><h2>Plan your first walking day</h2><p>Pick a start and end point on the trail.</p><button className="primary-button" onClick={openNewDay}><Plus size={18} /> Add first day</button></div>}
           </section>
         )}
@@ -763,16 +764,18 @@ export function CoastPathApp() {
   );
 }
 
-function SortableDayItem({ day, selected, deletePending, onOpen, onEdit, onRequestDelete, onCancelDelete, onConfirmDelete, onRemoveBreak }: {
+function SortableDayItem({ day, selected, deletePending, pointsOfInterest, onOpen, onEdit, onRequestDelete, onCancelDelete, onConfirmDelete, onRemoveBreak, onRemovePointOfInterest }: {
   day: WalkingDay;
   selected: boolean;
   deletePending: boolean;
+  pointsOfInterest: ResolvedPointOfInterest[];
   onOpen: () => void;
   onEdit: () => void;
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void | Promise<void>;
   onRemoveBreak: () => void;
+  onRemovePointOfInterest: (point: PlannedPointOfInterest) => void | Promise<void>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
   const distance = dayDistanceKm(day);
@@ -799,6 +802,12 @@ function SortableDayItem({ day, selected, deletePending, onOpen, onEdit, onReque
       onCancel={onCancelDelete}
       onConfirm={onConfirmDelete}
     />}
+    {pointsOfInterest.map((point) => <article className="itinerary-poi-row" key={point.id}>
+      <span className="poi-connector" aria-hidden="true" />
+      <span className="location-pin"><MapPin /></span>
+      <span><small>Point of interest · {(point.distanceKm - day.startDistanceKm).toFixed(1)} km into Day {day.order}</small><strong>{point.name}</strong></span>
+      <button onClick={() => onRemovePointOfInterest(point)} aria-label={`Remove ${point.name} point of interest`}><X /></button>
+    </article>)}
     {day.breakAfter && <article className="break-day-row">
       <span className="break-icon"><Coffee /></span>
       <span><small>{formatDate(breakDateAfter(day))}</small><strong>Break day</strong></span>

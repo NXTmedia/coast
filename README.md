@@ -8,7 +8,7 @@ An offline-first, mobile-first PWA for planning walking days and tracking progre
 - One-tap “start where the previous day ended” planning
 - Walking-stage start and end selection from the saved Locations list
 - One Plan **Add** menu for stages, saved-location points of interest and break days
-- Offline-persisted points of interest with distance to the next stop on Track
+- Offline-persisted points of interest positioned inside their walking stage, with distance to the next stop on Track
 - Custom named locations with coordinate-to-path matching on the Locations screen
 - Editable saved-location list with coordinate-to-GPX matching
 - Protection against deleting locations that are still used by planned stages
